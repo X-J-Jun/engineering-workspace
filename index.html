@@ -975,6 +975,46 @@
   :is([data-role="viewer"], [data-role="reviewer"], [data-role="submitter"], [data-role="manager"])
     label[for="importInput"] { display:none; }
   :root:not([data-role="owner"]) #openMembers { display:none; }
+  [data-cloud-entry] body { padding:0; }
+  [data-cloud-entry] body > :is(header, main, footer, .sidebar, .sidebar-toggle, .sidebar-backdrop) { display:none; }
+  [data-cloud-entry] body, [data-cloud-entry] .cloud-login::backdrop {
+    background:radial-gradient(ellipse at 20% 20%,var(--blue-soft),transparent 65%),var(--page);
+  }
+  .cloud-login {
+    width:min(760px,calc(100% - 32px));
+    max-height:calc(100dvh - 32px);
+    border:1px solid var(--line);
+    border-radius:18px;
+    box-shadow:0 20px 65px rgba(24,38,30,.15);
+  }
+  .cloud-login-layout { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,3fr); }
+  .cloud-login-brand {
+    display:flex; flex-direction:column; justify-content:center; align-items:flex-start; gap:10px;
+    padding:34px; background:var(--blue-soft); color:var(--navy);
+  }
+  .cloud-login-mark {
+    display:grid; place-items:center; width:44px; height:44px; border-radius:12px;
+    color:white; background:var(--navy); font-size:21px; font-weight:700;
+  }
+  .cloud-login-brand p { margin:8px 0 0; font-size:clamp(22px,4vw,32px); font-weight:750; line-height:1.2; }
+  .cloud-login-brand > span:last-child { font-size:14px; }
+  .cloud-login-content { padding:34px; min-width:0; }
+  .cloud-login-content h2 { margin:0 0 24px; color:var(--navy); font-size:25px; }
+  .cloud-login-content .field { margin-bottom:14px; }
+  .cloud-login-content .cloud-primary { width:100%; margin:8px 0; }
+  .cloud-login-content [hidden] { display:none!important; }
+  #cloudRegistrationEntry { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
+  #cloudLoginError:empty { display:none; }
+  #cloudLoginError { margin:14px 0 0; color:#a23327; }
+  .cloud-register-steps { padding-inline-start:22px; line-height:1.65; }
+  .cloud-login-note { font-size:14px; color:var(--muted); }
+  @media(max-width:600px) {
+    .cloud-login-layout { grid-template-columns:1fr; }
+    .cloud-login-brand,.cloud-login-content { padding:22px; }
+    .cloud-login-brand { display:grid; grid-template-columns:auto 1fr; }
+    .cloud-login-brand p { margin:0; align-self:center; }
+    .cloud-login-brand > span:last-child { grid-column:2; }
+  }
 </style>
 </head>
 <body>
@@ -1016,23 +1056,46 @@
   </div>
 </header>
 
-<dialog id="cloudLogin" class="app-dialog" aria-labelledby="cloudLoginTitle">
-  <form id="cloudLoginForm" class="dialog-body">
-    <h2 id="cloudLoginTitle">登录工程项目工作台</h2>
-    <div class="field"><label for="cloudEmail">邮箱</label><input id="cloudEmail" type="email" list="cloudRecentAccounts" required autocomplete="username"></div>
-    <div class="field"><label for="cloudPassword">密码</label><input id="cloudPassword" type="password" required autocomplete="current-password"></div>
-    <datalist id="cloudRecentAccounts"></datalist>
-    <p id="cloudLoginError" role="alert"></p>
-    <button type="submit">登录</button>
-    <button type="button" id="cloudCancelSwitch" class="secondary" hidden>取消</button>
-    <button type="button" id="githubSignIn" class="secondary" hidden>使用 GitHub 登录</button>
-    <section id="cloudJoinPanel" hidden aria-label="加入工作区">
-      <p id="cloudJoinStatus" role="status"></p>
-      <button type="button" id="applyToWorkspace" hidden>申请加入工作区</button>
-      <button type="button" id="refreshJoinStatus" class="secondary">刷新申请状态</button>
-      <button type="button" id="logoutApplicant" class="secondary">退出当前账号</button>
-    </section>
-  </form>
+<dialog id="cloudLogin" class="app-dialog cloud-login" aria-labelledby="cloudLoginTitle">
+  <div class="cloud-login-layout">
+    <div class="cloud-login-brand">
+      <span class="cloud-login-mark" aria-hidden="true">工</span>
+      <p>工程项目管理工作台</p>
+      <span>项目计划、进度与交付验收</span>
+    </div>
+    <form id="cloudLoginForm" class="cloud-login-content">
+      <h2 id="cloudLoginTitle">登录工作台</h2>
+      <div id="cloudCredentials">
+        <div class="field"><label for="cloudEmail">邮箱</label><input id="cloudEmail" type="email" list="cloudRecentAccounts" required autocomplete="username"></div>
+        <div class="field"><label for="cloudPassword">密码</label><input id="cloudPassword" type="password" required autocomplete="current-password"></div>
+        <datalist id="cloudRecentAccounts"></datalist>
+        <button class="cloud-primary" type="submit">登录</button>
+        <button type="button" id="cloudCancelSwitch" class="secondary" hidden>取消</button>
+        <div id="cloudRegistrationEntry">
+          <span>首次加入工作区？</span>
+          <button type="button" id="cloudRegister" class="secondary">注册</button>
+        </div>
+      </div>
+      <div id="cloudRegistration" hidden>
+        <ol class="cloud-register-steps">
+          <li>使用 GitHub 验证你的账号。</li>
+          <li>返回工作台后提交加入申请。</li>
+          <li>等待所有者审批并分配角色。</li>
+        </ol>
+        <p class="cloud-login-note">已获批的 GitHub 成员也可从这里直接登录。</p>
+        <p id="githubUnavailable" class="cloud-login-note" hidden>GitHub 登录暂不可用，请联系工作区所有者。</p>
+        <button type="button" id="githubSignIn" class="cloud-primary">继续使用 GitHub</button>
+        <button type="button" id="cloudBackToLogin" class="secondary">返回登录</button>
+      </div>
+      <div id="cloudJoinPanel" hidden aria-label="加入工作区">
+        <p id="cloudJoinStatus" role="status"></p>
+        <button type="button" id="applyToWorkspace" class="cloud-primary" hidden>申请加入工作区</button>
+        <button type="button" id="refreshJoinStatus" class="secondary">刷新申请状态</button>
+        <button type="button" id="logoutApplicant" class="secondary">返回登录</button>
+      </div>
+      <p id="cloudLoginError" role="alert"></p>
+    </form>
+  </div>
 </dialog>
 <main>
   <section class="workspace-overview" aria-labelledby="overviewHeading">
@@ -1846,6 +1909,7 @@ function acceptSharedState({state, actor, role}) {
   sharedActor = actor;
   sharedRole = role;
   if (cloud) {
+    delete document.documentElement.dataset.cloudEntry;
     closeDialog(cloudLogin);
     cloudSwitch.hidden = cloudLogout.hidden = false;
     rememberCloudAccount(actor);
@@ -3517,6 +3581,11 @@ const cloudRecentAccounts = document.querySelector('#cloudRecentAccounts');
 let recentCloudAccounts = [];
 let githubEnabled = false;
 const githubSignIn = document.querySelector('#githubSignIn');
+const cloudCredentials = document.querySelector('#cloudCredentials');
+const cloudRegistration = document.querySelector('#cloudRegistration');
+const cloudRegister = document.querySelector('#cloudRegister');
+const cloudBackToLogin = document.querySelector('#cloudBackToLogin');
+const githubUnavailable = document.querySelector('#githubUnavailable');
 const cloudJoinPanel = document.querySelector('#cloudJoinPanel');
 const cloudJoinStatus = document.querySelector('#cloudJoinStatus');
 const applyToWorkspace = document.querySelector('#applyToWorkspace');
@@ -3540,7 +3609,8 @@ async function updateJoinStatus(action = 'status') {
       rejected: '申请未获通过，请联系工作区所有者。',
       revoked: '工作区访问权限已撤销，请联系所有者。'
     };
-    cloudJoinPanel.hidden = !labels[result.state];
+    if (!labels[result.state]) return;
+    setCloudLoginView('application');
     applyToWorkspace.hidden = result.state !== 'new';
     cloudJoinStatus.textContent = labels[result.state] || '';
     if (!cloudJoinPanel.hidden) cloudLoginError.textContent = '';
@@ -3554,16 +3624,27 @@ function rememberCloudAccount(email) {
   try { sessionStorage.setItem(STORAGE_KEY + ':recent-accounts', JSON.stringify(recentCloudAccounts)); } catch {}
 }
 
+function setCloudLoginView(view) {
+  const switching = cloudLogin.dataset.switching === 'true';
+  const login = view === 'login';
+  cloudCredentials.hidden = !login;
+  cloudEmail.disabled = cloudPassword.disabled = !login;
+  cloudRegistration.hidden = view !== 'register';
+  cloudJoinPanel.hidden = view !== 'application';
+  cloudLoginTitle.textContent = view === 'application' ? '加入申请' : view === 'register' ? '注册工作台账号' :
+    switching ? '切换工作台账号' : '登录工作台';
+  githubUnavailable.hidden = githubEnabled;
+  githubSignIn.disabled = !githubEnabled;
+  cloudPassword.value = '';
+  cloudLoginError.textContent = '';
+}
+
 function prepareCloudLogin(switching) {
   cloudLogin.dataset.switching = String(switching);
-  cloudLoginTitle.textContent = switching ? '切换工作台账号' : '登录工程项目工作台';
+  setCloudLoginView('login');
   cloudLoginForm.querySelector('button[type="submit"]').textContent = switching ? '切换账号' : '登录';
   cloudCancelSwitch.hidden = !switching;
-  githubSignIn.hidden = !githubEnabled;
-  cloudJoinPanel.hidden = true;
-  cloudLoginError.textContent = '';
   cloudEmail.value = switching ? '' : recentCloudAccounts[0] || '';
-  cloudPassword.value = '';
   cloudRecentAccounts.replaceChildren(...recentCloudAccounts.map(email => new Option(email)));
 }
 
@@ -3583,6 +3664,7 @@ function handleCloudLogin(response) {
   // Only sign-in failures or lack of workspace membership are handled here.
   sharedActor = sharedRole = '';
   serverRevision = null;
+  document.documentElement.dataset.cloudEntry = '';
   delete document.documentElement.dataset.role;
   data = normalizeState({});
   document.querySelector('main').inert = true;
@@ -3612,6 +3694,14 @@ if (cloud) {
     showDialog(cloudLogin);
   });
   cloudCancelSwitch.addEventListener('click', () => closeDialog(cloudLogin));
+  cloudRegister.addEventListener('click', () => {
+    setCloudLoginView('register');
+    (githubEnabled ? githubSignIn : cloudBackToLogin).focus();
+  });
+  cloudBackToLogin.addEventListener('click', () => {
+    setCloudLoginView('login');
+    cloudRegister.focus();
+  });
   githubSignIn.addEventListener('click', async () => {
     if (syncInFlight || syncConflict || sessionStorage.getItem(draftKey)) {
       cloudLoginError.textContent = '请等同步结束，或先导出并清除草稿。';
@@ -3621,7 +3711,7 @@ if (cloud) {
     try { await cloud.startGithubSignIn(); }
     catch {
       cloudLoginError.textContent = '无法启动 GitHub 登录，请重试。';
-      githubSignIn.disabled = false;
+      githubSignIn.disabled = !githubEnabled;
     }
   });
   applyToWorkspace.addEventListener('click', async () => {
@@ -3632,7 +3722,7 @@ if (cloud) {
   refreshJoinStatus.addEventListener('click', () => void updateJoinStatus());
   logoutApplicant.addEventListener('click', () => cloudLogout.click());
   cloudLogin.addEventListener('cancel', event => {
-    if (cloudLoginForm.querySelector('button[type="submit"]').disabled) event.preventDefault();
+    if (!sharedActor || cloudLoginForm.querySelector('button[type="submit"]').disabled) event.preventDefault();
   });
   const passwordField = document.querySelector('#memberPassword');
   passwordField.closest('.field').hidden = true;
@@ -3640,7 +3730,7 @@ if (cloud) {
   cloudLoginForm.addEventListener('submit', async event => {
     event.preventDefault();
     const button = cloudLoginForm.querySelector('button[type="submit"]');
-    if (button.disabled) return;
+    if (button.disabled || cloudCredentials.hidden) return;
     const switching = cloudLogin.dataset.switching === 'true';
     if (switching && syncInFlight) {
       cloudLoginError.textContent = '正在同步，请稍候再试。';
@@ -4059,12 +4149,18 @@ if (sharedMode) {
     location.reload();
   });
   if (cloud) {
+    document.documentElement.dataset.cloudEntry = '';
     void (async () => {
       let oauthError = '';
       try { await cloud.completeGithubSignIn(); }
       catch (error) { oauthError = error.message; }
       try { githubEnabled = await cloud.githubEnabled(); } catch {}
       await connectServer();
+      if (!sharedActor && !cloudLogin.open) {
+        prepareCloudLogin(false);
+        showDialog(cloudLogin);
+        cloudLoginError.textContent = '暂时无法连接工作台，请稍后重试。';
+      }
       if (oauthError && cloudLogin.open) cloudLoginError.textContent = oauthError;
     })();
   } else void connectServer();
