@@ -1010,6 +1010,7 @@
       <option value="teal">深青色</option>
     </select>
     <span id="currentProjectBadge" hidden></span>
+    <button id="cloudSwitch" type="button" class="secondary" hidden>切换账号</button>
     <button id="cloudLogout" type="button" class="secondary" hidden>退出登录</button>
     <span id="syncStatus" class="sync-status" role="status" data-mode="local"><span id="syncStatusText">本地保存</span></span>
   </div>
@@ -1018,10 +1019,12 @@
 <dialog id="cloudLogin" class="app-dialog" aria-labelledby="cloudLoginTitle">
   <form id="cloudLoginForm" class="dialog-body">
     <h2 id="cloudLoginTitle">登录工程项目工作台</h2>
-    <div class="field"><label for="cloudEmail">邮箱</label><input id="cloudEmail" type="email" required autocomplete="username"></div>
+    <div class="field"><label for="cloudEmail">邮箱</label><input id="cloudEmail" type="email" list="cloudRecentAccounts" required autocomplete="username"></div>
     <div class="field"><label for="cloudPassword">密码</label><input id="cloudPassword" type="password" required autocomplete="current-password"></div>
+    <datalist id="cloudRecentAccounts"></datalist>
     <p id="cloudLoginError" role="alert"></p>
     <button type="submit">登录</button>
+    <button type="button" id="cloudCancelSwitch" class="secondary" hidden>取消</button>
   </form>
 </dialog>
 <main>
@@ -1832,7 +1835,8 @@ function acceptSharedState({state, actor, role}) {
   sharedRole = role;
   if (cloud) {
     closeDialog(cloudLogin);
-    cloudLogout.hidden = false;
+    cloudSwitch.hidden = cloudLogout.hidden = false;
+    rememberCloudAccount(actor);
   }
   document.documentElement.dataset.role = role;
   editRevision = null;
@@ -3492,6 +3496,40 @@ const cloudLogin = document.querySelector('#cloudLogin');
 const cloudLoginForm = document.querySelector('#cloudLoginForm');
 const cloudLoginError = document.querySelector('#cloudLoginError');
 const cloudLogout = document.querySelector('#cloudLogout');
+const cloudSwitch = document.querySelector('#cloudSwitch');
+const cloudEmail = document.querySelector('#cloudEmail');
+const cloudPassword = document.querySelector('#cloudPassword');
+const cloudLoginTitle = document.querySelector('#cloudLoginTitle');
+const cloudCancelSwitch = document.querySelector('#cloudCancelSwitch');
+const cloudRecentAccounts = document.querySelector('#cloudRecentAccounts');
+let recentCloudAccounts = [];
+
+function rememberCloudAccount(email) {
+  recentCloudAccounts = [email, ...recentCloudAccounts.filter(account => account !== email)].slice(0, 5);
+  try { sessionStorage.setItem(STORAGE_KEY + ':recent-accounts', JSON.stringify(recentCloudAccounts)); } catch {}
+}
+
+function prepareCloudLogin(switching) {
+  cloudLogin.dataset.switching = String(switching);
+  cloudLoginTitle.textContent = switching ? '切换工作台账号' : '登录工程项目工作台';
+  cloudLoginForm.querySelector('button[type="submit"]').textContent = switching ? '切换账号' : '登录';
+  cloudCancelSwitch.hidden = !switching;
+  cloudLoginError.textContent = '';
+  cloudEmail.value = switching ? '' : recentCloudAccounts[0] || '';
+  cloudPassword.value = '';
+  cloudRecentAccounts.replaceChildren(...recentCloudAccounts.map(email => new Option(email)));
+}
+
+function clearAccountWorkspace() {
+  taskQuery.value = taskFilter.value = riskQuery.value = riskFilter.value = todoOwner.value = '';
+  pendingDelaySimulation = null;
+  delayResult.innerHTML = '';
+  projectForm.reset();
+  memberForm.reset();
+  memberList.replaceChildren();
+  importInput.value = '';
+  document.querySelector('#resolveConflict').hidden = true;
+}
 
 function handleCloudLogin(response) {
   if (!cloud || ![401, 403].includes(response.status)) return false;
@@ -3503,23 +3541,64 @@ function handleCloudLogin(response) {
   document.querySelector('main').inert = true;
   document.querySelectorAll('dialog[open]').forEach(closeDialog);
   renderAll();
-  cloudLogout.hidden = true;
+  clearAccountWorkspace();
+  cloudSwitch.hidden = cloudLogout.hidden = true;
+  prepareCloudLogin(false);
   cloudLoginError.textContent = response.status === 403 ? '此账号尚未获准访问工作区。' : '';
   showDialog(cloudLogin);
   return true;
 }
 
 if (cloud) {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY + ':recent-accounts'));
+    if (Array.isArray(saved)) recentCloudAccounts = saved.filter(email => typeof email === 'string').slice(0, 5);
+  } catch {}
+
+  cloudSwitch.addEventListener('click', () => {
+    if (syncConflict || sessionStorage.getItem(draftKey)) {
+      showMessage('请先同步或导出并清除草稿，再切换账号。', 'error');
+      return;
+    }
+    prepareCloudLogin(true);
+    showDialog(cloudLogin);
+  });
+  cloudCancelSwitch.addEventListener('click', () => closeDialog(cloudLogin));
+  cloudLogin.addEventListener('cancel', event => {
+    if (cloudLoginForm.querySelector('button[type="submit"]').disabled) event.preventDefault();
+  });
   const passwordField = document.querySelector('#memberPassword');
   passwordField.closest('.field').hidden = true;
   document.querySelector('label[for="memberName"]').textContent = '已在 Supabase 创建的登录邮箱';
   cloudLoginForm.addEventListener('submit', async event => {
     event.preventDefault();
-    const button = cloudLoginForm.querySelector('button');
-    const password = document.querySelector('#cloudPassword');
-    button.disabled = true;
+    const button = cloudLoginForm.querySelector('button[type="submit"]');
+    if (button.disabled) return;
+    const switching = cloudLogin.dataset.switching === 'true';
+    if (switching && syncInFlight) {
+      cloudLoginError.textContent = '正在同步，请稍候再试。';
+      return;
+    }
+    if (switching && (syncConflict || sessionStorage.getItem(draftKey))) {
+      cloudLoginError.textContent = '请先同步或导出并清除草稿。';
+      return;
+    }
+    button.disabled = cloudCancelSwitch.disabled = true;
+    cloudLoginError.textContent = '';
     try {
-      if (!await cloud.signIn(document.querySelector('#cloudEmail').value.trim(), password.value)) {
+      if (switching) {
+        const next = await cloud.switchAccount(cloudEmail.value.trim(), cloudPassword.value);
+        if (next.status) {
+          cloudLoginError.textContent = next.status === 401 ? '登录失败，请检查邮箱和密码。' :
+            next.status === 403 ? '此账号尚未获准访问工作区。' : '暂时无法验证该账号，请重试。';
+          return;
+        }
+        clearAccountWorkspace();
+        acceptSharedState(next);
+        showMessage('账号已切换。');
+        return;
+      }
+      if (!await cloud.signIn(cloudEmail.value.trim(), cloudPassword.value)) {
         cloudLoginError.textContent = '登录失败，请检查邮箱和密码。';
         return;
       }
@@ -3528,8 +3607,8 @@ if (cloud) {
     } catch {
       cloudLoginError.textContent = '暂时无法连接登录服务，请重试。';
     } finally {
-      password.value = '';
-      button.disabled = false;
+      cloudPassword.value = '';
+      button.disabled = cloudCancelSwitch.disabled = false;
     }
   });
   cloudLogout.addEventListener('click', async () => {

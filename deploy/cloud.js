@@ -33,6 +33,22 @@
     return session?.access_token;
   }
 
+  function callWorkspace(path, options, accessToken) {
+    const routes = {'/api/state': 'state', '/api/sync': 'sync', '/api/task-action': 'task-action',
+      '/api/members': options.method === 'POST' ? 'member-write' : 'members'};
+    return fetch(url + '/rest/v1/rpc/workspace_api', {
+      method: 'POST',
+      headers: {apikey: key, Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json'},
+      body: JSON.stringify({route: routes[path], payload: options.body ? JSON.parse(options.body) : {}})
+    });
+  }
+
+  function revoke(accessToken) {
+    return fetch(url + '/auth/v1/logout?scope=local', {
+      method: 'POST', headers: {apikey: key, Authorization: 'Bearer ' + accessToken}
+    });
+  }
+
   window.workspaceCloud = {
     async signIn(email, password) {
       const result = await auth('password', {email, password});
@@ -40,25 +56,30 @@
       remember(result);
       return true;
     },
+    async switchAccount(email, password) {
+      const next = await auth('password', {email, password});
+      if (!next) return {status: 401};
+      const response = await callWorkspace('/api/state', {}, next.access_token);
+      if (!response.ok) return {status: response.status};
+      const result = await response.json();
+      if (!result.state || !result.actor || !result.role) return {status: result.status || 403};
+
+      const previous = session;
+      remember(next);
+      if (previous?.access_token && previous.access_token !== next.access_token) {
+        void revoke(previous.access_token).catch(() => {});
+      }
+      return result;
+    },
     async signOut() {
       const accessToken = session?.access_token;
       remember(null);
-      if (accessToken) {
-        await fetch(url + '/auth/v1/logout?scope=local', {
-          method: 'POST', headers: {apikey: key, Authorization: 'Bearer ' + accessToken}
-        });
-      }
+      if (accessToken) await revoke(accessToken);
     },
     async request(path, options = {}) {
       const accessToken = await token();
       if (!accessToken) return new Response(null, {status: 401});
-      const routes = {'/api/state': 'state', '/api/sync': 'sync', '/api/task-action': 'task-action',
-        '/api/members': options.method === 'POST' ? 'member-write' : 'members'};
-      const response = await fetch(url + '/rest/v1/rpc/workspace_api', {
-        method: 'POST',
-        headers: {apikey: key, Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json'},
-        body: JSON.stringify({route: routes[path], payload: options.body ? JSON.parse(options.body) : {}})
-      });
+      const response = await callWorkspace(path, options, accessToken);
       if (!response.ok) {
         if (response.status === 401) remember(null);
         return response;
