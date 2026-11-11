@@ -1,0 +1,7 @@
+*.sqlite3*
+*.db
+*.db-*
+*.json
+.env*
+/_site/
+__pycache__/
