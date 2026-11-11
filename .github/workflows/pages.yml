@@ -22,8 +22,8 @@ jobs:
       - name: Build website
         run: python3 deploy/build_pages.py
         env:
-          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://snmwombeyxlryxcxhxtq.supabase.co' }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_qMHEnZOegFVdJK1ocsDUiw_Pd2_0tXZ' }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
