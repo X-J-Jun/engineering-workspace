@@ -1101,7 +1101,7 @@
       <div id="cloudRegistration" hidden>
         <ol class="cloud-register-steps">
           <li>使用 GitHub 验证你的账号。</li>
-          <li>返回工作台后提交加入申请。</li>
+          <li>授权成功后，工作台会自动提交加入申请。</li>
           <li>等待所有者审批并分配角色。</li>
         </ol>
         <p class="cloud-login-note">已获批的 GitHub 成员也可从这里直接登录。</p>
@@ -1991,14 +1991,14 @@ function sharedSnapshot(source = data) {
   };
 }
 
-async function connectServer() {
+async function connectServer({applyAfterGithub = false} = {}) {
   if (!sharedMode || syncInFlight || syncConflict) return;
   syncInFlight = true;
   try {
     const opening = !sharedActor;
     if (opening) {
       const identity = await workspaceRequest('/api/state', {cache: 'no-store'});
-      if (handleCloudLogin(identity)) return;
+      if (handleCloudLogin(identity, applyAfterGithub)) return;
       if (!identity.ok) throw new Error(`HTTP ${identity.status}`);
       acceptSharedState(await identity.json());
     }
@@ -3625,19 +3625,28 @@ async function updateJoinStatus(action = 'status') {
       await connectServer();
       return;
     }
+    if (result.status === 401) {
+      prepareCloudLogin(false);
+      cloudLoginError.textContent = '登录已失效，请重新验证 GitHub 账号。';
+      return;
+    }
     const labels = {
       new: 'GitHub 登录成功。提交申请后，工作区所有者会为你分配角色。',
       pending: '申请已提交，等待工作区所有者审批。',
       rejected: '申请未获通过，请联系工作区所有者。',
       revoked: '工作区访问权限已撤销，请联系所有者。'
     };
-    if (!labels[result.state]) return;
+    if (result.error === 'confirmed_github_account_required') {
+      cloudJoinStatus.textContent = '当前账号无法提交 GitHub 加入申请。请确认 GitHub 邮箱已验证，并从「注册」重新授权。';
+      applyToWorkspace.hidden = true;
+      return;
+    }
+    if (!labels[result.state]) throw new Error('Join request did not return a status');
     setCloudLoginView('application');
     applyToWorkspace.hidden = result.state !== 'new';
-    cloudJoinStatus.textContent = labels[result.state] || '';
-    if (!cloudJoinPanel.hidden) cloudLoginError.textContent = '';
+    cloudJoinStatus.textContent = labels[result.state];
   } catch {
-    if (!sharedActor) cloudLoginError.textContent = '暂时无法读取加入状态，请稍后重试。';
+    if (!sharedActor) cloudLoginError.textContent = '暂时无法读取或提交申请，请点击「刷新申请状态」重试。';
   }
 }
 
@@ -3681,7 +3690,7 @@ function clearAccountWorkspace() {
   document.querySelector('#resolveConflict').hidden = true;
 }
 
-function handleCloudLogin(response) {
+function handleCloudLogin(response, applyAfterGithub = false) {
   if (!cloud || ![401, 403].includes(response.status)) return false;
   // Only sign-in failures or lack of workspace membership are handled here.
   sharedActor = sharedRole = '';
@@ -3695,9 +3704,16 @@ function handleCloudLogin(response) {
   clearAccountWorkspace();
   cloudSwitch.hidden = cloudLogout.hidden = true;
   prepareCloudLogin(false);
-  cloudLoginError.textContent = response.status === 403 ? '此账号尚未获准访问工作区。' : '';
-  showDialog(cloudLogin);
-  if (response.status === 403 && githubEnabled) void updateJoinStatus();
+  if (response.status === 403 && (githubEnabled || applyAfterGithub)) {
+    setCloudLoginView('application');
+    cloudJoinStatus.textContent = applyAfterGithub ? 'GitHub 授权成功，正在提交加入申请…' : '正在查询加入状态…';
+    applyToWorkspace.hidden = true;
+    showDialog(cloudLogin);
+    void updateJoinStatus(applyAfterGithub ? 'apply' : 'status');
+  } else {
+    cloudLoginError.textContent = response.status === 403 ? '此账号尚未获准访问工作区。' : '';
+    showDialog(cloudLogin);
+  }
   return true;
 }
 
@@ -4174,10 +4190,12 @@ if (sharedMode) {
     document.documentElement.dataset.cloudEntry = '';
     void (async () => {
       let oauthError = '';
-      try { await cloud.completeGithubSignIn(); }
+      let completedGithub = false;
+      try { completedGithub = await cloud.completeGithubSignIn(); }
       catch (error) { oauthError = error.message; }
       try { githubEnabled = await cloud.githubEnabled(); } catch {}
-      await connectServer();
+      if (completedGithub) githubEnabled = true;
+      await connectServer({applyAfterGithub: completedGithub});
       if (!sharedActor && !cloudLogin.open) {
         prepareCloudLogin(false);
         showDialog(cloudLogin);

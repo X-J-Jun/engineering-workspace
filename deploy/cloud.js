@@ -66,7 +66,7 @@
       const target = new URL(url + '/auth/v1/authorize');
       target.search = new URLSearchParams({
         provider: 'github',
-        redirect_to: location.origin + location.pathname,
+        redirect_to: new URL('./', location.href).href,
         code_challenge: base64url(new Uint8Array(hash)),
         code_challenge_method: 's256'
       });
@@ -76,20 +76,27 @@
       const callback = new URL(location.href);
       const verifier = sessionStorage.getItem(verifierKey);
       const code = callback.searchParams.get('code');
-      const oauthError = callback.searchParams.has('error') || new URLSearchParams(callback.hash.slice(1)).has('error');
-      if (!code && !(verifier && oauthError)) return;
+      const fragment = new URLSearchParams(callback.hash.slice(1));
+      const error = callback.searchParams.get('error') || fragment.get('error');
+      const errorCode = callback.searchParams.get('error_code') || fragment.get('error_code');
+      if (!code && !error && !errorCode) return false;
+
       sessionStorage.removeItem(verifierKey);
       for (const name of ['code', 'error', 'error_code', 'error_description']) callback.searchParams.delete(name);
-      if (oauthError) callback.hash = '';
+      if (fragment.has('error') || fragment.has('error_code')) callback.hash = '';
       history.replaceState(null, '', callback);
-      if (!code || !verifier) throw new Error('GitHub 登录未完成，请重试。');
+      if (errorCode === 'signup_disabled') throw new Error('当前工作区暂停了新账号注册，请联系所有者。');
+      if (error === 'access_denied') throw new Error('GitHub 授权未完成，请重新点击「注册」并在 GitHub 同意授权。');
+      if (!code) throw new Error('GitHub 授权未返回登录凭据，请重试；若仍失败，请联系所有者。');
+      if (!verifier) throw new Error('当前标签页找不到 GitHub 登录验证信息。请在 Chrome 或 Edge 的同一标签页重新注册并完成授权。');
       const next = await auth('pkce', {auth_code: code, code_verifier: verifier});
-      if (!next) throw new Error('GitHub 登录已过期，请重试。');
+      if (!next) throw new Error('GitHub 登录验证未成功，请在同一标签页重新注册并完成授权。');
       const previous = session;
       remember(next);
       if (previous?.access_token && previous.access_token !== next.access_token) {
         void revoke(previous.access_token).catch(() => {});
       }
+      return true;
     },
     async join(action, fields = {}) {
       const accessToken = await token();
