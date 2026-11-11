@@ -1037,6 +1037,44 @@
     .cloud-login-brand p { margin:0; align-self:center; }
     .cloud-login-brand > span:last-child { grid-column:2; }
   }
+  main { max-width:1320px; margin-block:24px 54px; }
+  main > section { border-radius:12px; border-color:var(--line); border-top-color:var(--blue); box-shadow:0 5px 18px rgba(29,44,32,.06); }
+  main > section::after { display:none; }
+  main > section h2 { color:var(--navy); }
+  .table-wrap { border-radius:8px; }
+  .workspace-filters { gap:8px 12px; }
+  .workspace-filters input, .workspace-filters select { max-width:100%; }
+  .board-title-row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .board-title-row h2 { margin-bottom:0; }
+  #toggleBoard[hidden], #boardArea[hidden] { display:none; }
+  .board-head { border-radius:8px; margin-top:14px; gap:12px; }
+  .board { align-items:start; gap:12px; }
+  .board > .empty { grid-column:1 / -1; }
+  .board-column { min-height:0; padding:12px; border-radius:10px; background:#f7f8f5; border-color:var(--line); }
+  .board-column h3 { align-items:center; color:var(--navy); }
+  .board-column .count { padding:2px 8px; border-radius:999px; background:var(--blue-soft); color:var(--navy); font-weight:700; }
+  .board-card { border-radius:8px; padding:12px; background:#fff; border-inline-start:3px solid var(--line); }
+  [data-board-column="doing"] .board-card { border-inline-start-color:var(--gold); }
+  [data-board-column="done"] .board-card { border-inline-start-color:var(--green); }
+  .board-card-title { display:flex; align-items:baseline; gap:8px; }
+  .board-card-title .level-tag { flex:none; }
+  .board-card-title h4 { margin:0; }
+  .board-card-details { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 10px; margin:9px 0; font-size:12px; }
+  .board-card-details div { display:flex; flex-wrap:wrap; gap:2px 6px; min-width:0; }
+  .board-card-details dt { color:var(--muted); }
+  .board-card-details dd { margin:0; overflow-wrap:anywhere; }
+  .board-card-deliverable { grid-column:1 / -1; }
+  .board-card-actions { display:flex; flex-wrap:wrap; align-items:center; gap:5px; padding-top:8px; border-top:1px solid var(--line); }
+  .board-card-actions label { flex:1 1 88px; min-width:0; }
+  .board-card-actions select { margin:0; min-height:31px; }
+  .board-card-actions .why-btn { margin:0; width:auto; }
+  .board-more { width:100%; margin-top:10px; }
+  @media(max-width:600px) {
+    main { padding-inline:12px; }
+    main > section { padding-inline:14px; }
+    .board-title-row { align-items:center; }
+    .board-column { padding:10px; }
+  }
 </style>
 </head>
 <body>
@@ -1149,7 +1187,7 @@
     </div>
   </section>
   <section aria-labelledby="projectHeading">
-    <h2 id="projectHeading">1. 项目管理</h2>
+    <h2 id="projectHeading">项目管理</h2>
     <p class="hint">新建项目后会自动设为当前项目；也可以随时切换，刷新页面后会保留选择。</p>
     <form id="projectForm" class="form-grid">
       <div class="field span-4">
@@ -1277,8 +1315,10 @@
   </section>
 
   <section aria-labelledby="boardHeading">
-    <h2 id="boardHeading">3. 进度看板</h2>
-    <p class="hint">看板只统计二级工作包，并直接读取 WBS 中的同一份任务数据。</p>
+    <div class="board-title-row">
+      <h2 id="boardHeading">进度看板</h2>
+      <button id="toggleBoard" type="button" class="secondary" aria-controls="boardArea" aria-expanded="true" hidden>收起看板</button>
+    </div>
     <div class="board-head">
       <div>
         <span class="muted">工作包完成率</span>
@@ -1387,7 +1427,7 @@
   </section>
 
   <section aria-labelledby="innovationHeading">
-    <h2 id="innovationHeading">5. 创新管理</h2>
+    <h2 id="innovationHeading">创新管理</h2>
     <p class="hint">围绕排期、阻塞、复盘、资源冲突和验收提供可操作的决策支持，所有结果都读取当前项目数据。</p>
     <div class="innovation-stack">
       <article id="delaySimulationPanel" class="innovation-card">
@@ -1634,6 +1674,11 @@ const wbsSubmit = document.querySelector('#wbsSubmit');
 const cancelTaskEdit = document.querySelector('#cancelTaskEdit');
 const wbsTableBody = document.querySelector('#wbsTableBody');
 const boardArea = document.querySelector('#boardArea');
+const toggleBoard = document.querySelector('#toggleBoard');
+const BOARD_PREVIEW_LIMIT = 3;
+const expandedBoardColumns = new Set();
+let boardProjectId = null;
+let boardCollapsed = false;
 const completionText = document.querySelector('#completionText');
 const completionBar = document.querySelector('#completionBar');
 const boardSummary = document.querySelector('#boardSummary');
@@ -2258,12 +2303,30 @@ function renderWbs() {
   wbsTableBody.innerHTML = rows.join('');
 }
 
+function syncBoardVisibility(hasTasks) {
+  toggleBoard.hidden = !hasTasks;
+  boardArea.hidden = hasTasks && boardCollapsed;
+  toggleBoard.setAttribute('aria-expanded', String(!boardArea.hidden));
+  toggleBoard.textContent = boardArea.hidden ? '展开看板' : '收起看板';
+}
+
+toggleBoard.addEventListener('click', () => {
+  boardCollapsed = !boardCollapsed;
+  syncBoardVisibility(true);
+});
+
 function renderBoard() {
   const project = getCurrentProject();
+  if (boardProjectId !== (project?.id ?? null)) {
+    boardProjectId = project?.id ?? null;
+    boardCollapsed = false;
+    expandedBoardColumns.clear();
+  }
   if (!project) {
     completionText.textContent = '0%';
     completionBar.style.width = '0';
     boardSummary.textContent = '请先创建或选择一个项目';
+    syncBoardVisibility(false);
     boardArea.innerHTML = '<div class="empty">请先创建或选择一个项目。</div>';
     return;
   }
@@ -2274,6 +2337,7 @@ function renderBoard() {
   completionBar.style.width = `${progress.percent}%`;
   boardSummary.textContent = `已完成 ${progress.completed} / ${progress.total} 项工作包`;
 
+  syncBoardVisibility(tasks.length > 0);
   if (!tasks.length) {
     boardArea.innerHTML = '<div class="empty">当前项目还没有二级工作包，请先在 WBS 中添加。</div>';
     return;
@@ -2281,29 +2345,43 @@ function renderBoard() {
 
   boardArea.innerHTML = TASK_STATUSES.map(status => {
     const statusTasks = tasks.filter(task => task.status === status);
-    const cards = statusTasks.length
-      ? statusTasks.map(task => `
+    const expanded = expandedBoardColumns.has(status);
+    const visibleTasks = expanded ? statusTasks : statusTasks.slice(0, BOARD_PREVIEW_LIMIT);
+    const remaining = statusTasks.length - BOARD_PREVIEW_LIMIT;
+    const cards = visibleTasks.length
+      ? visibleTasks.map(task => `
         <article class="board-card">
-          <span class="level-tag">${escapeHTML(task.code)}</span>
-          <h4>${escapeHTML(task.title)}</h4>
-          <p>负责人：${escapeHTML(task.owner || '未填写')}</p>
-          <p>截止：${escapeHTML(task.endDate || '未填写')}</p>
-          <p>交付物：${escapeHTML(task.deliverable || '未填写')}</p>
-          ${task.requiresAcceptance ? `<p>验收：${ACCEPTANCE_LABELS[task.acceptanceStatus]}</p>${acceptanceButton(task)}` : ''}
+          <div class="board-card-title">
+            <span class="level-tag">${escapeHTML(task.code)}</span>
+            <h4>${escapeHTML(task.title)}</h4>
+          </div>
+          <dl class="board-card-details">
+            <div><dt>负责人</dt><dd>${escapeHTML(task.owner || '未填写')}</dd></div>
+            <div><dt>截止</dt><dd>${escapeHTML(task.endDate || '未填写')}</dd></div>
+            <div class="board-card-deliverable"><dt>交付物</dt><dd>${escapeHTML(task.deliverable || '未填写')}</dd></div>
+            ${task.requiresAcceptance ? `<div class="board-card-deliverable"><dt>验收</dt><dd>${ACCEPTANCE_LABELS[task.acceptanceStatus]}</dd></div>` : ''}
+          </dl>
+          <div class="board-card-actions">
           <label>
             <span class="visually-hidden">修改 ${escapeHTML(task.title)} 的状态</span>
             <select data-board-action="status" data-id="${escapeHTML(task.id)}"${canUpdateTask(task) ? '' : ' disabled'}>
               ${TASK_STATUSES.map(item => `<option value="${item}"${item === status ? ' selected' : ''}>${TASK_STATUS_LABELS[item]}</option>`).join('')}
             </select>
           </label>
-          <button class="small secondary why-btn" type="button" data-board-action="why" data-id="${escapeHTML(task.id)}">为什么卡住了？</button>
+          ${acceptanceButton(task)}
+          <button class="small secondary why-btn" type="button" data-board-action="why" data-id="${escapeHTML(task.id)}">卡点详情</button>
+          </div>
         </article>
       `).join('')
       : '<div class="empty">暂无任务</div>';
     return `
-      <div class="board-column">
+      <div class="board-column" data-board-column="${status}">
         <h3>${TASK_STATUS_LABELS[status]} <span class="count">${statusTasks.length}</span></h3>
-        ${cards}
+        <div id="board-cards-${status}">${cards}</div>
+        ${remaining > 0 ? `<button class="secondary board-more" type="button" data-expand-board="${status}"
+          aria-expanded="${expanded}" aria-controls="board-cards-${status}">
+          ${expanded ? '收起更多任务' : `展开其余 ${remaining} 项`}
+        </button>` : ''}
       </div>
     `;
   }).join('');
@@ -3106,6 +3184,15 @@ boardArea.addEventListener('change', async event => {
 });
 
 boardArea.addEventListener('click', event => {
+  const more = event.target.closest('[data-expand-board]');
+  if (more) {
+    const status = more.dataset.expandBoard;
+    if (expandedBoardColumns.has(status)) expandedBoardColumns.delete(status);
+    else expandedBoardColumns.add(status);
+    renderBoard();
+    boardArea.querySelector(`[data-expand-board="${status}"]`)?.focus();
+    return;
+  }
   const button = event.target.closest('button[data-board-action="why"]');
   if (button) openTaskBlockerExplanation(button.dataset.id);
   const acceptance = event.target.closest('[data-task-action="acceptance"]');
