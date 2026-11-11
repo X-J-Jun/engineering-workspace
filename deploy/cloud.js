@@ -6,6 +6,25 @@
   function base64url(bytes) {
     return btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
   }
+  function githubCallbackError(error, code, description) {
+    const detail = (description || '').toLowerCase();
+    if (code === 'signup_disabled') return '当前工作区暂停了新账号注册，请联系所有者。';
+    if (code === 'provider_email_needs_verification' || detail.includes('getting user email') ||
+        detail.includes('email is not verified') || detail.includes('no verified email')) {
+      return 'Supabase 未能取得已验证的 GitHub 邮箱。请在 GitHub 的 Settings → Emails 检查邮箱验证状态后重试。';
+    }
+    if (detail.includes('unable to exchange external code') || detail.includes('incorrect_client_credentials')) {
+      return 'Supabase 无法用 GitHub 授权码换取登录凭据。请让所有者查看 Supabase Auth 日志，核对 GitHub OAuth App 的 Client ID 和 Client Secret。';
+    }
+    if (code === 'bad_oauth_state' || code === 'bad_oauth_callback' || code === 'flow_state_expired') {
+      return 'GitHub 授权状态无效或已过期。请在同一个浏览器标签页重新点击「注册」并完成授权。';
+    }
+    if (error === 'access_denied') return 'GitHub 授权未完成，请重新点击「注册」并在 GitHub 同意授权。';
+    const reason = code || error || '';
+    const reference = /^[a-z][a-z0-9_]{1,60}$/.test(reason) ? '（错误代码 ' + reason + '）' : '';
+    return 'GitHub 授权未返回登录凭据' + reference + '。请让所有者查看 Supabase Auth 日志中同一时间的回调错误。';
+  }
+
   let session;
   try { session = JSON.parse(sessionStorage.getItem(sessionKey)); } catch {}
   let refreshing;
@@ -79,15 +98,14 @@
       const fragment = new URLSearchParams(callback.hash.slice(1));
       const error = callback.searchParams.get('error') || fragment.get('error');
       const errorCode = callback.searchParams.get('error_code') || fragment.get('error_code');
+      const description = callback.searchParams.get('error_description') || fragment.get('error_description');
       if (!code && !error && !errorCode) return false;
 
       sessionStorage.removeItem(verifierKey);
       for (const name of ['code', 'error', 'error_code', 'error_description']) callback.searchParams.delete(name);
       if (fragment.has('error') || fragment.has('error_code')) callback.hash = '';
       history.replaceState(null, '', callback);
-      if (errorCode === 'signup_disabled') throw new Error('当前工作区暂停了新账号注册，请联系所有者。');
-      if (error === 'access_denied') throw new Error('GitHub 授权未完成，请重新点击「注册」并在 GitHub 同意授权。');
-      if (!code) throw new Error('GitHub 授权未返回登录凭据，请重试；若仍失败，请联系所有者。');
+      if (!code) throw new Error(githubCallbackError(error, errorCode, description));
       if (!verifier) throw new Error('当前标签页找不到 GitHub 登录验证信息。请在 Chrome 或 Edge 的同一标签页重新注册并完成授权。');
       const next = await auth('pkce', {auth_code: code, code_verifier: verifier});
       if (!next) throw new Error('GitHub 登录验证未成功，请在同一标签页重新注册并完成授权。');
