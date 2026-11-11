@@ -1025,6 +1025,13 @@
     <p id="cloudLoginError" role="alert"></p>
     <button type="submit">登录</button>
     <button type="button" id="cloudCancelSwitch" class="secondary" hidden>取消</button>
+    <button type="button" id="githubSignIn" class="secondary" hidden>使用 GitHub 登录</button>
+    <section id="cloudJoinPanel" hidden aria-label="加入工作区">
+      <p id="cloudJoinStatus" role="status"></p>
+      <button type="button" id="applyToWorkspace" hidden>申请加入工作区</button>
+      <button type="button" id="refreshJoinStatus" class="secondary">刷新申请状态</button>
+      <button type="button" id="logoutApplicant" class="secondary">退出当前账号</button>
+    </section>
   </form>
 </dialog>
 <main>
@@ -1475,6 +1482,11 @@
     <button type="button" class="secondary" data-close-dialog="membersDialog">关闭</button>
   </div>
   <div class="dialog-body">
+    <section id="memberRequests" hidden aria-labelledby="memberRequestsHeading">
+      <h4 id="memberRequestsHeading">待审批申请</h4>
+      <p id="memberRequestsStatus" role="status"></p>
+      <ul id="memberRequestList"></ul>
+    </section>
     <ul id="memberList"></ul>
     <form id="memberForm">
       <div class="field"><label for="memberName">账号</label><input id="memberName" required maxlength="80"></div>
@@ -3503,6 +3515,39 @@ const cloudLoginTitle = document.querySelector('#cloudLoginTitle');
 const cloudCancelSwitch = document.querySelector('#cloudCancelSwitch');
 const cloudRecentAccounts = document.querySelector('#cloudRecentAccounts');
 let recentCloudAccounts = [];
+let githubEnabled = false;
+const githubSignIn = document.querySelector('#githubSignIn');
+const cloudJoinPanel = document.querySelector('#cloudJoinPanel');
+const cloudJoinStatus = document.querySelector('#cloudJoinStatus');
+const applyToWorkspace = document.querySelector('#applyToWorkspace');
+const refreshJoinStatus = document.querySelector('#refreshJoinStatus');
+const logoutApplicant = document.querySelector('#logoutApplicant');
+const memberRequests = document.querySelector('#memberRequests');
+const memberRequestsStatus = document.querySelector('#memberRequestsStatus');
+const memberRequestList = document.querySelector('#memberRequestList');
+
+async function updateJoinStatus(action = 'status') {
+  try {
+    const result = await cloud.join(action);
+    if (sharedActor || !cloudLogin.open) return;
+    if (result.state === 'member') {
+      await connectServer();
+      return;
+    }
+    const labels = {
+      new: 'GitHub 登录成功。提交申请后，工作区所有者会为你分配角色。',
+      pending: '申请已提交，等待工作区所有者审批。',
+      rejected: '申请未获通过，请联系工作区所有者。',
+      revoked: '工作区访问权限已撤销，请联系所有者。'
+    };
+    cloudJoinPanel.hidden = !labels[result.state];
+    applyToWorkspace.hidden = result.state !== 'new';
+    cloudJoinStatus.textContent = labels[result.state] || '';
+    if (!cloudJoinPanel.hidden) cloudLoginError.textContent = '';
+  } catch {
+    if (!sharedActor) cloudLoginError.textContent = '暂时无法读取加入状态，请稍后重试。';
+  }
+}
 
 function rememberCloudAccount(email) {
   recentCloudAccounts = [email, ...recentCloudAccounts.filter(account => account !== email)].slice(0, 5);
@@ -3514,6 +3559,8 @@ function prepareCloudLogin(switching) {
   cloudLoginTitle.textContent = switching ? '切换工作台账号' : '登录工程项目工作台';
   cloudLoginForm.querySelector('button[type="submit"]').textContent = switching ? '切换账号' : '登录';
   cloudCancelSwitch.hidden = !switching;
+  githubSignIn.hidden = !githubEnabled;
+  cloudJoinPanel.hidden = true;
   cloudLoginError.textContent = '';
   cloudEmail.value = switching ? '' : recentCloudAccounts[0] || '';
   cloudPassword.value = '';
@@ -3546,6 +3593,7 @@ function handleCloudLogin(response) {
   prepareCloudLogin(false);
   cloudLoginError.textContent = response.status === 403 ? '此账号尚未获准访问工作区。' : '';
   showDialog(cloudLogin);
+  if (response.status === 403 && githubEnabled) void updateJoinStatus();
   return true;
 }
 
@@ -3564,6 +3612,25 @@ if (cloud) {
     showDialog(cloudLogin);
   });
   cloudCancelSwitch.addEventListener('click', () => closeDialog(cloudLogin));
+  githubSignIn.addEventListener('click', async () => {
+    if (syncInFlight || syncConflict || sessionStorage.getItem(draftKey)) {
+      cloudLoginError.textContent = '请等同步结束，或先导出并清除草稿。';
+      return;
+    }
+    githubSignIn.disabled = true;
+    try { await cloud.startGithubSignIn(); }
+    catch {
+      cloudLoginError.textContent = '无法启动 GitHub 登录，请重试。';
+      githubSignIn.disabled = false;
+    }
+  });
+  applyToWorkspace.addEventListener('click', async () => {
+    applyToWorkspace.disabled = true;
+    try { await updateJoinStatus('apply'); }
+    finally { applyToWorkspace.disabled = false; }
+  });
+  refreshJoinStatus.addEventListener('click', () => void updateJoinStatus());
+  logoutApplicant.addEventListener('click', () => cloudLogout.click());
   cloudLogin.addEventListener('cancel', event => {
     if (cloudLoginForm.querySelector('button[type="submit"]').disabled) event.preventDefault();
   });
@@ -3636,13 +3703,69 @@ async function loadMembers() {
     </li>`).join('');
 }
 
+async function loadJoinRequests() {
+  memberRequests.hidden = !githubEnabled;
+  if (!githubEnabled) return;
+  memberRequestList.replaceChildren();
+  memberRequestsStatus.textContent = '正在读取申请…';
+  try {
+    const result = await cloud.join('list');
+    if (!Array.isArray(result.requests)) throw new Error('无法读取申请，请确认已安装加入审批的数据库脚本。');
+    for (const request of result.requests) {
+      const row = document.createElement('li');
+      row.dataset.applicant = request.id;
+      row.append(document.createTextNode(request.email + ' '));
+      const select = document.createElement('select');
+      select.setAttribute('aria-label', '给 ' + request.email + ' 分配角色');
+      for (const role of ['viewer', 'submitter', 'reviewer', 'manager']) {
+        select.add(new Option(ROLE_NAMES[role], role));
+      }
+      row.append(select);
+      for (const [action, label] of [['approve', '通过'], ['reject', '拒绝']]) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.decision = action;
+        button.textContent = label;
+        button.className = 'small secondary';
+        row.append(button);
+      }
+      memberRequestList.append(row);
+    }
+    memberRequestsStatus.textContent = result.requests.length ? '' : '暂无待审批申请。';
+  } catch (error) {
+    memberRequestsStatus.textContent = error.message;
+  }
+}
+
+memberRequestList.addEventListener('click', async event => {
+  const button = event.target.closest('[data-decision]');
+  if (!button || button.disabled) return;
+  const row = button.closest('li');
+  const action = button.dataset.decision;
+  for (const control of row.querySelectorAll('button, select')) control.disabled = true;
+  try {
+    const result = await cloud.join(action, {
+      applicant: row.dataset.applicant,
+      assigned_role: action === 'approve' ? row.querySelector('select').value : null
+    });
+    if (!result.ok && result.status !== 409) throw new Error('审批未保存，请重试。');
+    await Promise.all([loadJoinRequests(), loadMembers()]);
+    memberError.textContent = result.status === 409 ? '这条申请已经处理。' :
+      action === 'approve' ? '已通过申请并分配角色。' : '已拒绝申请。';
+  } catch (error) {
+    memberError.textContent = error.message;
+  } finally {
+    for (const control of row.querySelectorAll('button, select')) control.disabled = false;
+  }
+});
+
 document.querySelector('#openMembers').addEventListener('click', async () => {
   memberForm.reset();
   memberError.textContent = '';
   memberList.replaceChildren();
   showDialog(membersDialog);
   try {
-    await loadMembers();
+    await Promise.all([loadMembers(), loadJoinRequests()]);
   } catch (error) {
     memberError.textContent = error.message;
   }
@@ -3935,7 +4058,16 @@ if (sharedMode) {
     sessionStorage.removeItem(draftKey);
     location.reload();
   });
-  void connectServer();
+  if (cloud) {
+    void (async () => {
+      let oauthError = '';
+      try { await cloud.completeGithubSignIn(); }
+      catch (error) { oauthError = error.message; }
+      try { githubEnabled = await cloud.githubEnabled(); } catch {}
+      await connectServer();
+      if (oauthError && cloudLogin.open) cloudLoginError.textContent = oauthError;
+    })();
+  } else void connectServer();
   setInterval(() => {
     if (!document.hidden && !cloudLogin.open) void connectServer();
   }, 4000);

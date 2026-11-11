@@ -1,6 +1,11 @@
 (() => {
   const {url, key} = window.workspaceCloudConfig;
   const sessionKey = 'ecut-cloud-session:' + url;
+  const verifierKey = sessionKey + ':github-pkce';
+
+  function base64url(bytes) {
+    return btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+  }
   let session;
   try { session = JSON.parse(sessionStorage.getItem(sessionKey)); } catch {}
   let refreshing;
@@ -50,6 +55,52 @@
   }
 
   window.workspaceCloud = {
+    async githubEnabled() {
+      const response = await fetch(url + '/auth/v1/settings', {headers: {apikey: key}});
+      return response.ok && (await response.json()).external?.github === true;
+    },
+    async startGithubSignIn() {
+      const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)));
+      const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+      sessionStorage.setItem(verifierKey, verifier);
+      const target = new URL(url + '/auth/v1/authorize');
+      target.search = new URLSearchParams({
+        provider: 'github',
+        redirect_to: location.origin + location.pathname,
+        code_challenge: base64url(new Uint8Array(hash)),
+        code_challenge_method: 's256'
+      });
+      location.assign(target);
+    },
+    async completeGithubSignIn() {
+      const callback = new URL(location.href);
+      const verifier = sessionStorage.getItem(verifierKey);
+      const code = callback.searchParams.get('code');
+      const oauthError = callback.searchParams.has('error') || new URLSearchParams(callback.hash.slice(1)).has('error');
+      if (!code && !(verifier && oauthError)) return;
+      sessionStorage.removeItem(verifierKey);
+      for (const name of ['code', 'error', 'error_code', 'error_description']) callback.searchParams.delete(name);
+      if (oauthError) callback.hash = '';
+      history.replaceState(null, '', callback);
+      if (!code || !verifier) throw new Error('GitHub 登录未完成，请重试。');
+      const next = await auth('pkce', {auth_code: code, code_verifier: verifier});
+      if (!next) throw new Error('GitHub 登录已过期，请重试。');
+      const previous = session;
+      remember(next);
+      if (previous?.access_token && previous.access_token !== next.access_token) {
+        void revoke(previous.access_token).catch(() => {});
+      }
+    },
+    async join(action, fields = {}) {
+      const accessToken = await token();
+      if (!accessToken) return {status: 401};
+      const response = await fetch(url + '/rest/v1/rpc/workspace_join', {
+        method: 'POST',
+        headers: {apikey: key, Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json'},
+        body: JSON.stringify({action, ...fields})
+      });
+      return response.ok ? response.json() : {status: response.status};
+    },
     async signIn(email, password) {
       const result = await auth('password', {email, password});
       if (!result) return false;
