@@ -1081,6 +1081,51 @@
     .board-title-row { align-items:center; }
     .gantt-row { grid-template-columns:164px minmax(0,1fr); }
   }
+  :root:not([data-cloud-entry]) body { background:#f3f5f8; }
+  :root:not([data-cloud-entry]) .sidebar {
+    background:#fff; border-right:1px solid #dce2e9; box-shadow:none; padding:18px 14px;
+  }
+  :root:not([data-cloud-entry]) .sidebar-brand { border-color:#e1e6ec; }
+  :root:not([data-cloud-entry]) .sidebar-brand strong { color:#172436; font-size:16px; }
+  :root:not([data-cloud-entry]) .sidebar-brand span { color:#526174; }
+  .workspace-nav-group { margin:18px 0; }
+  .workspace-nav-group p { margin:0 10px 6px; font-size:11px; font-weight:650; color:#526174; }
+  :root:not([data-cloud-entry]) .sidebar a { color:#27384e; padding:8px 10px; border-radius:6px; }
+  :root:not([data-cloud-entry]) .sidebar a::before { background:#8c9aac; }
+  :root:not([data-cloud-entry]) .sidebar a:hover,
+  :root:not([data-cloud-entry]) .sidebar a[aria-current] { background:var(--blue-soft); color:var(--navy); transform:none; }
+  :root:not([data-cloud-entry]) .sidebar a[aria-current]::before { background:var(--navy); }
+  :root:not([data-cloud-entry]) .workspace-header {
+    background:#fff; border:0; border-bottom:1px solid #dce2e9; box-shadow:none;
+  }
+  :root:not([data-cloud-entry]) .workspace-header h1,
+  :root:not([data-cloud-entry]) .workspace-context label { color:#172436; }
+  :root:not([data-cloud-entry]) .workspace-context .sync-status { background:#edf5f1; color:#234737; border-color:#d4e3db; }
+  :root:not([data-cloud-entry]) .workspace-context .sync-status[data-mode="error"] { background:#fbecea; color:#8c3128; border-color:#ead0cd; }
+  main > section { border:1px solid #dde3e9; box-shadow:0 2px 7px rgba(22,37,51,.04); }
+  main > section h2 { color:#172436; }
+  .workspace-overview .overview-metrics button:not(.danger):not(.secondary) {
+    background:#fff; border-color:#dfe5ec; color:#27384e; box-shadow:none; border-radius:8px;
+  }
+  .workspace-overview .overview-metrics strong { color:var(--navy); font-variant-numeric:tabular-nums; }
+  .gantt-header { background:#edf1f5; color:#172436; }
+  .gantt-header > strong { background:#edf1f5; }
+  .gantt-parent-row,.gantt-parent-row .gantt-task { background:#f5f7fa; }
+  .gantt-parent-row .gantt-task { padding:0; }
+  .gantt-group-toggle.secondary {
+    display:flex; align-items:center; gap:8px; text-align:left; width:100%; min-height:53px;
+    padding:8px 10px; border-radius:0; border:0; background:transparent; color:#172436;
+  }
+  .gantt-group-toggle.secondary:hover { background:var(--blue-soft); }
+  .gantt-chevron { flex:none; }
+  .gantt-group-toggle[aria-expanded="true"] .gantt-chevron { transform:rotate(90deg); }
+  .gantt-group-label { display:grid; gap:2px; min-width:0; overflow-wrap:anywhere; }
+  .gantt-group-label small { color:#526174; font-weight:400; }
+  .gantt-group-bar { position:absolute; top:50%; height:10px; min-width:3px; transform:translateY(-50%);
+    overflow:hidden; border-radius:4px; background:#d3dce6; }
+  .gantt-group-bar i { display:block; height:100%; background:#34794d; }
+  .gantt-child-row .gantt-task { padding-left:24px; }
+  @media(max-width:600px) { .gantt-child-row .gantt-task { padding-left:16px; } }
 </style>
 </head>
 <body>
@@ -1093,14 +1138,23 @@
     <span>东华理工大学 · 实训工作台</span>
   </div>
   <nav aria-label="项目工作台">
-    <a href="#overviewHeading">项目总览</a>
-    <a href="#todoHeading">项目待办</a>
-    <a href="#projectHeading">项目管理</a>
-    <a href="#wbsHeading">任务与进度</a>
-    <a href="#boardHeading">进度甘特图</a>
-    <a href="#riskHeading">风险与问题</a>
-    <a id="acceptanceNav" href="#acceptancePanel">里程碑验收</a>
-    <a href="#backupHeading">数据管理</a>
+    <div class="workspace-nav-group">
+      <p>概览</p>
+      <a href="#overviewHeading">项目总览</a>
+      <a href="#todoHeading">项目待办</a>
+    </div>
+    <div class="workspace-nav-group">
+      <p>项目执行</p>
+      <a href="#projectHeading">项目管理</a>
+      <a href="#wbsHeading">任务与进度</a>
+      <a href="#boardHeading">进度甘特图</a>
+      <a href="#riskHeading">风险与问题</a>
+      <a id="acceptanceNav" href="#acceptancePanel">里程碑验收</a>
+    </div>
+    <div class="workspace-nav-group">
+      <p>设置</p>
+      <a href="#backupHeading">数据管理</a>
+    </div>
   </nav>
 </aside>
 <header class="workspace-header">
@@ -1541,15 +1595,18 @@
         <div class="field"><label for="reviewConclusion">验收结论</label><textarea id="reviewConclusion" maxlength="2000"></textarea></div>
         <div class="field"><label for="reviewEvidence">验收凭证（报告编号或链接）</label><input id="reviewEvidence" maxlength="500"></div>
       </div>
+      <p id="internalReviewRecord" class="external-review-record" hidden></p>
       <p id="externalReviewRecord" hidden></p>
       <div class="field" id="returnReasonField" hidden>
-        <label for="acceptanceReturnReason">退回原因（退回时必填）</label>
+        <label id="acceptanceReasonLabel" for="acceptanceReturnReason">退回原因（退回时必填）</label>
         <textarea id="acceptanceReturnReason"></textarea>
       </div>
       <div id="acceptanceError" role="alert"></div>
       <div class="dialog-actions">
         <button type="submit" name="action" value="save">保存验收条件</button>
         <button type="submit" name="action" value="submit">提交验收</button>
+        <button type="submit" name="action" value="internal-approve" hidden disabled>内部通过</button>
+        <button type="submit" class="secondary" name="action" value="internal-return" hidden disabled>内部退回</button>
         <button type="submit" name="action" value="approve">通过</button>
         <button type="submit" class="danger" name="action" value="return">退回</button>
         <button class="secondary" type="button" data-close-dialog="acceptanceDialog">关闭</button>
@@ -1653,6 +1710,8 @@ const boardArea = document.querySelector('#boardArea');
 const toggleBoard = document.querySelector('#toggleBoard');
 let boardProjectId = null;
 let boardCollapsed = false;
+const expandedGanttGroups = new Set();
+let ganttGroupKeys = [];
 const completionText = document.querySelector('#completionText');
 const completionBar = document.querySelector('#completionBar');
 const boardSummary = document.querySelector('#boardSummary');
@@ -1727,6 +1786,11 @@ function canReview(task) {
     (sharedRole === 'reviewer' && !assignedTo(task, sharedActor) &&
       task.submittedBy.toLowerCase() !== sharedActor.toLowerCase()));
 }
+function canReviewInternally(task) {
+  return thirdPartyAcceptance && sharedRole === 'owner' && task.requiresAcceptance &&
+    ['pending', 'accepted', 'returned'].includes(task.acceptanceStatus);
+}
+
 let syncInFlight = false;
 let syncConflict = false;
 let editRevision = null;
@@ -1854,6 +1918,7 @@ function normalizeState(raw) {
         submittedBy: text(task.submittedBy),
         reviewedBy: text(task.reviewedBy),
         ...(validExternalReview(task.officialReview) ? {officialReview: task.officialReview} : {}),
+        ...(validInternalReview(task.internalReview) ? {internalReview: task.internalReview} : {}),
         delayCount: Math.max(0, Number(task.delayCount) || 0)
       };
     });
@@ -1943,7 +2008,7 @@ function acceptSharedState({state, actor, role, acceptanceMode}) {
   document.querySelector('#acceptancePanelTitle').textContent = label;
   document.querySelector('#acceptanceDialogTitle').textContent = thirdPartyAcceptance ? label : '工作包验收';
   document.querySelector('#acceptancePanelDescription').textContent = thirdPartyAcceptance
-    ? '外部验收人员独立审核交付物，并记录机构、结论和凭证。'
+    ? '所有者可记录内部审批；第三方验收员独立出具验收结论和凭证。'
     : '查看交付物、验收条件和处理结果。';
   document.querySelector('#memberRole [value="reviewer"]').textContent = ROLE_NAMES.reviewer;
   if (sharedActor && (sharedActor !== actor || sharedRole !== role)) {
@@ -2296,6 +2361,7 @@ function renderBoard() {
   if (boardProjectId !== (project?.id ?? null)) {
     boardProjectId = project?.id ?? null;
     boardCollapsed = false;
+    expandedGanttGroups.clear();
   }
   if (!project) {
     completionText.textContent = '0%';
@@ -2306,7 +2372,8 @@ function renderBoard() {
     return;
   }
 
-  const tasks = currentTasks().filter(task => task.level === 2).sort(codeSort);
+  const projectTasks = currentTasks().sort(codeSort);
+  const tasks = projectTasks.filter(task => task.level === 2);
   const progress = taskProgress(tasks);
   completionText.textContent = `${progress.percent}%`;
   completionBar.style.width = `${progress.percent}%`;
@@ -2336,6 +2403,71 @@ function renderBoard() {
   const today = dateNumber(formatDateValue(new Date()));
   const todayLine = today >= start && today <= end
     ? `<span class="gantt-today" title="今天" style="left:${(today - start) * 100 / span}%"></span>` : '';
+  const byParent = new Map();
+  for (const entry of entries) {
+    const key = entry.task.parentId;
+    if (!byParent.has(key)) byParent.set(key, []);
+    byParent.get(key).push(entry);
+  }
+  const groups = projectTasks.filter(task => task.level === 1 && byParent.has(task.id))
+    .map(task => ({key: task.id, code: task.code, title: task.title, children: byParent.get(task.id)}));
+  const represented = new Set(groups.map(group => group.key));
+  const orphans = entries.filter(entry => !represented.has(entry.task.parentId));
+  if (orphans.length) groups.push({key: null, code: '', title: '未归组工作包', children: orphans});
+  ganttGroupKeys = groups.map(group => group.key);
+  const trackGuides = ticks.map(tick => `<span class="gantt-line" style="left:${tick.left}%"></span>`).join('') + todayLine;
+
+  const renderWorkPackage = ({task, start: taskStart, end: taskEnd}) => {
+  const plotted = Number.isFinite(taskStart) && taskEnd >= taskStart;
+  const label = escapeHTML(task.title);
+  const range = plotted ? `${task.startDate} 至 ${task.endDate}` : '待排期';
+  return `<div class="gantt-row gantt-child-row">
+    <div class="gantt-task">
+      <div class="gantt-task-title"><span class="level-tag">${escapeHTML(task.code)}</span><strong>${label}</strong></div>
+      <span class="gantt-task-meta">${escapeHTML(task.owner || '未分配')} · ${range}</span>
+      <div class="gantt-actions">
+        <label><span class="visually-hidden">修改 ${label} 的状态</span>
+          <select data-board-action="status" data-id="${escapeHTML(task.id)}"${canUpdateTask(task) ? '' : ' disabled'}>
+            ${TASK_STATUSES.map(status => `<option value="${status}"${status === task.status ? ' selected' : ''}>${TASK_STATUS_LABELS[status]}</option>`).join('')}
+          </select>
+        </label>
+        ${acceptanceButton(task)}
+        <button class="small secondary" type="button" data-board-action="why" data-id="${escapeHTML(task.id)}">任务详情</button>
+      </div>
+    </div>
+    <div class="gantt-track">
+      ${trackGuides}
+      ${plotted ? `<span class="gantt-bar" data-status="${task.status}"
+        title="${label} · ${range}" style="left:${(taskStart - start) * 100 / span}%;width:${(taskEnd - taskStart + 1) * 100 / span}%"></span>`
+        : '<span class="gantt-unscheduled">待排期</span>'}
+    </div>
+  </div>`;
+  };
+  const groupRows = groups.map((group, index) => {
+    const completed = group.children.filter(({task}) => task.status === 'done').length;
+    const expanded = expandedGanttGroups.has(group.key);
+    const dates = group.children.filter(item => Number.isFinite(item.start) && item.end >= item.start);
+    const first = dates.reduce((min, item) => Math.min(min, item.start), Infinity);
+    const last = dates.reduce((max, item) => Math.max(max, item.end), -Infinity);
+    const range = dates.length ? `${dateLabel(first)} 至 ${dateLabel(last)}` : '待排期';
+    const progress = completed * 100 / group.children.length;
+    return `<div class="gantt-row gantt-parent-row">
+      <div class="gantt-task">
+        <button type="button" class="gantt-group-toggle secondary" data-gantt-group="${index}"
+          aria-controls="gantt-children-${index}" aria-expanded="${expanded}">
+          <span class="gantt-chevron" aria-hidden="true">▸</span>
+          <span class="gantt-group-label"><strong>${escapeHTML([group.code, group.title].filter(Boolean).join(' '))}</strong>
+            <small>${completed} / ${group.children.length} 个工作包完成</small></span>
+        </button>
+      </div>
+      <div class="gantt-track">${trackGuides}
+        ${dates.length ? `<span class="gantt-group-bar" title="${range}"
+          style="left:${(first - start) * 100 / span}%;width:${(last - first + 1) * 100 / span}%">
+          <i style="width:${progress}%"></i></span>` : '<span class="gantt-unscheduled">待排期</span>'}
+      </div>
+    </div>
+    <div id="gantt-children-${index}"${expanded ? '' : ' hidden'}>${expanded ? group.children.map(renderWorkPackage).join('') : ''}</div>`;
+  }).join('');
   boardArea.innerHTML = `
     <div class="gantt-meta">
       <span>${span ? `${dateLabel(start)} 至 ${dateLabel(end)}` : '暂无已排期工作包'}</span>
@@ -2346,36 +2478,10 @@ function renderBoard() {
     </div>
     <div class="gantt-scroll" role="region" aria-label="工作包甘特图，可横向滚动" tabindex="0">
       <div class="gantt-grid">
-        <div class="gantt-row gantt-header"><strong>工作包</strong><div class="gantt-axis">
+        <div class="gantt-row gantt-header"><strong>任务层级</strong><div class="gantt-axis">
           ${ticks.map(tick => `<time datetime="${tick.label}" style="left:${tick.left}%">${tick.label.slice(5)}</time>`).join('')}
         </div></div>
-        ${entries.map(({task, start: taskStart, end: taskEnd}) => {
-          const plotted = Number.isFinite(taskStart) && taskEnd >= taskStart;
-          const label = escapeHTML(task.title);
-          const range = plotted ? `${task.startDate} 至 ${task.endDate}` : '待排期';
-          return `<div class="gantt-row">
-            <div class="gantt-task">
-              <div class="gantt-task-title"><span class="level-tag">${escapeHTML(task.code)}</span><strong>${label}</strong></div>
-              <span class="gantt-task-meta">${escapeHTML(task.owner || '未分配')} · ${range}</span>
-              <div class="gantt-actions">
-                <label><span class="visually-hidden">修改 ${label} 的状态</span>
-                  <select data-board-action="status" data-id="${escapeHTML(task.id)}"${canUpdateTask(task) ? '' : ' disabled'}>
-                    ${TASK_STATUSES.map(status => `<option value="${status}"${status === task.status ? ' selected' : ''}>${TASK_STATUS_LABELS[status]}</option>`).join('')}
-                  </select>
-                </label>
-                ${acceptanceButton(task)}
-                <button class="small secondary" type="button" data-board-action="why" data-id="${escapeHTML(task.id)}">任务详情</button>
-              </div>
-            </div>
-            <div class="gantt-track">
-              ${ticks.map(tick => `<span class="gantt-line" style="left:${tick.left}%"></span>`).join('')}
-              ${todayLine}
-              ${plotted ? `<span class="gantt-bar" data-status="${task.status}"
-                title="${label} · ${range}" style="left:${(taskStart - start) * 100 / span}%;width:${(taskEnd - taskStart + 1) * 100 / span}%"></span>`
-                : '<span class="gantt-unscheduled">待排期</span>'}
-            </div>
-          </div>`;
-        }).join('')}
+        ${groupRows}
       </div>
     </div>`;
 }
@@ -2599,7 +2705,7 @@ function maySubmitAcceptance(task) {
 
 function acceptanceButton(task) {
   if (!task?.requiresAcceptance) return '';
-  const label = canReview(task) ? '处理验收' :
+  const label = canReviewInternally(task) ? '内部审批' : canReview(task) ? '处理验收' :
     canSubmitAcceptance(task) && maySubmitAcceptance(task) ? '提交验收' :
     !acceptanceLocked(task) && canManage() ? '验收条件' : '查看验收';
   return `<button class="small secondary" type="button" data-task-action="acceptance" data-id="${escapeHTML(task.id)}">${label}</button>`;
@@ -2612,9 +2718,20 @@ function validExternalReview(review) {
     ['accepted', 'returned'].includes(review.verdict);
 }
 
+function validInternalReview(review) {
+  return review && typeof review === 'object' &&
+    ['conclusion', 'reviewer', 'reviewedAt'].every(field => typeof review[field] === 'string') &&
+    ['accepted', 'returned'].includes(review.verdict);
+}
+
+function formatInternalReview(review) {
+  const verdict = review.verdict === 'accepted' ? '内部通过' : '内部退回';
+  return `${verdict} · ${review.reviewer} · ${review.reviewedAt.slice(0, 10)}${review.conclusion ? '\n意见：' + review.conclusion : ''}`;
+}
+
 function formatExternalReview(review) {
   const verdict = review.verdict === 'accepted' ? '通过' : '退回';
-  return `${verdict} · ${review.organization} · ${review.reviewer} · ${review.reviewedAt.slice(0, 10)}\n结论：${review.conclusion}\n凭证：${review.evidence}`;
+  return `第三方${verdict} · ${review.organization} · ${review.reviewer} · ${review.reviewedAt.slice(0, 10)}\n结论：${review.conclusion}\n凭证：${review.evidence}`;
 }
 
 function renderAcceptance() {
@@ -2629,6 +2746,7 @@ function renderAcceptance() {
           <h4>${escapeHTML(task.code)} ${escapeHTML(task.title)}</h4>
           <p>交付物：${escapeHTML(task.deliverable || '未填写')}</p>
           ${task.acceptanceReturnReason ? `<p>上次退回：${escapeHTML(task.acceptanceReturnReason)}</p>` : ''}
+          ${task.internalReview ? `<p class="external-review-record">${escapeHTML(formatInternalReview(task.internalReview))}</p>` : ''}
           ${task.officialReview ? `<p class="external-review-record">${escapeHTML(formatExternalReview(task.officialReview))}</p>` :
             thirdPartyAcceptance && task.acceptanceStatus === 'accepted' ? '<p>历史验收 · 未登记第三方凭证</p>' : ''}
         </div>
@@ -2967,6 +3085,18 @@ boardArea.addEventListener('change', async event => {
 });
 
 boardArea.addEventListener('click', event => {
+  const groupButton = event.target.closest('[data-gantt-group]');
+  if (groupButton) {
+    const index = groupButton.dataset.ganttGroup;
+    const key = ganttGroupKeys[Number(index)];
+    if (expandedGanttGroups.has(key)) expandedGanttGroups.delete(key);
+    else expandedGanttGroups.add(key);
+    const {scrollLeft, scrollTop} = boardArea.querySelector('.gantt-scroll');
+    renderBoard();
+    boardArea.querySelector(`[data-gantt-group="${index}"]`)?.focus({preventScroll:true});
+    Object.assign(boardArea.querySelector('.gantt-scroll'), {scrollLeft, scrollTop});
+    return;
+  }
   const button = event.target.closest('button[data-board-action="why"]');
   if (button) openTaskBlockerExplanation(button.dataset.id);
   const acceptance = event.target.closest('[data-task-action="acceptance"]');
@@ -3147,6 +3277,7 @@ function openAcceptanceSettings(taskId) {
   if (!task?.requiresAcceptance) return;
   const locked = acceptanceLocked(task) || !canManage();
   const review = canReview(task);
+  const internalReview = canReviewInternally(task);
   acceptanceTaskId.value = task.id;
   acceptanceTaskName.textContent = `${task.code} ${task.title}`;
   document.querySelector('#acceptanceDetails').textContent =
@@ -3160,14 +3291,19 @@ function openAcceptanceSettings(taskId) {
   acceptanceReturnReason.value = '';
   reviewOrganization.value = reviewConclusion.value = reviewEvidence.value = '';
   document.querySelector('#externalReviewFields').hidden = !review || !thirdPartyAcceptance;
+  const internalRecord = document.querySelector('#internalReviewRecord');
+  internalRecord.hidden = !task.internalReview;
+  internalRecord.textContent = task.internalReview ? formatInternalReview(task.internalReview) : '';
   const record = document.querySelector('#externalReviewRecord');
   record.hidden = !task.officialReview && (!thirdPartyAcceptance || task.acceptanceStatus !== 'accepted');
   record.textContent = task.officialReview ? formatExternalReview(task.officialReview) :
     '历史验收记录，未登记第三方验收凭证。';
   acceptanceError.textContent = '';
-  document.querySelector('#returnReasonField').hidden = !review;
+  document.querySelector('#returnReasonField').hidden = !review && !internalReview;
+  document.querySelector('#acceptanceReasonLabel').textContent = internalReview ?
+    '内部审批意见（退回时必填）' : '退回原因（退回时必填）';
   const actions = {save: !locked, submit: maySubmitAcceptance(task) && canSubmitAcceptance(task),
-    approve: review, return: review};
+    approve: review, return: review, 'internal-approve': internalReview, 'internal-return': internalReview};
   for (const button of acceptanceForm.querySelectorAll('[name="action"]')) {
     button.hidden = button.disabled = !actions[button.value];
   }
@@ -3264,11 +3400,12 @@ acceptanceForm.addEventListener('submit', async event => {
   const action = event.submitter?.value;
   if (sharedMode && action !== 'save') {
     const reason = acceptanceReturnReason.value.trim();
-    if (action === 'return' && !reason) {
+    if ((action === 'return' || action === 'internal-return') && !reason) {
       acceptanceError.textContent = '请填写退回原因。';
       return;
     }
     const fields = {reason};
+    if ((action === 'internal-approve' || action === 'internal-return') && !canReviewInternally(task)) return;
     if ((action === 'approve' || action === 'return') && !canReview(task)) return;
     if (thirdPartyAcceptance && (action === 'approve' || action === 'return')) {
       fields.organization = reviewOrganization.value.trim();
