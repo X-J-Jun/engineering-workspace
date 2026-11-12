@@ -1126,6 +1126,14 @@
   .gantt-group-bar i { display:block; height:100%; background:#34794d; }
   .gantt-child-row .gantt-task { padding-left:24px; }
   @media(max-width:600px) { .gantt-child-row .gantt-task { padding-left:16px; } }
+  .acceptance-flow-steps { list-style:none; display:flex; flex-wrap:wrap; gap:6px; padding:0; margin:10px 0 14px; }
+  .acceptance-flow-steps li { background:#edf1f5; color:#465a70; border-radius:5px; padding:5px 8px; font-size:12px; }
+  .acceptance-flow-steps [aria-current="step"] { background:var(--blue-soft); color:var(--navy); font-weight:700; }
+  .acceptance-materials { padding:12px; margin:12px 0; border:1px solid #dce3eb; border-radius:8px; background:#f7f9fc; }
+  .acceptance-materials h4 { margin:0 0 8px; color:var(--navy); }
+  .acceptance-materials p,.acceptance-materials a { white-space:pre-wrap; overflow-wrap:anywhere; }
+  .acceptance-materials textarea { min-height:72px; }
+  #acceptanceDialog [hidden] { display:none!important; }
 </style>
 </head>
 <body>
@@ -1581,14 +1589,35 @@
       <input id="acceptanceTaskId" type="hidden">
       <p id="acceptanceTaskName" class="muted"></p>
       <p id="acceptanceDetails"></p>
+      <ol id="acceptanceFlowSteps" class="acceptance-flow-steps" hidden>
+        <li>设置验收条件</li>
+        <li>提交验收材料</li>
+        <li>审批与第三方验收</li>
+      </ol>
       <p id="acceptanceReturnNote" hidden></p>
       <div class="field">
         <label for="acceptanceCriteria">验收条件</label>
-        <textarea id="acceptanceCriteria" placeholder="例如：提交课程报告、演示视频和运行截图"></textarea>
+        <textarea id="acceptanceCriteria" maxlength="4000" placeholder="例如：提交课程报告、演示视频和运行截图"></textarea>
       </div>
       <div class="field">
         <label for="acceptanceGap">仍缺少的证据</label>
-        <input id="acceptanceGap" placeholder="例如：还缺演示视频">
+        <input id="acceptanceGap" maxlength="2000" placeholder="例如：还缺演示视频">
+      </div>
+      <div id="acceptanceMaterialFields" class="acceptance-materials" hidden>
+        <h4>提交验收材料</h4>
+        <div class="field"><label for="acceptanceMaterialSummary">材料说明</label>
+          <textarea id="acceptanceMaterialSummary" maxlength="4000" placeholder="说明已完成的工作、交付物，以及如何核对验收条件"></textarea>
+        </div>
+        <div class="field"><label for="acceptanceMaterialLinks">附件链接（选填，每行一个 HTTPS 链接）</label>
+          <textarea id="acceptanceMaterialLinks" maxlength="6000" placeholder="粘贴第三方验收员可打开的报告、照片或演示链接"></textarea>
+        </div>
+        <p class="muted">提交后，工作包将标为已完成并进入待验收。退回后可以修改材料并补交。</p>
+      </div>
+      <div id="acceptanceSubmittedMaterials" class="acceptance-materials" hidden>
+        <h4>已提交材料</h4>
+        <p id="acceptanceSubmittedSummary"></p>
+        <ul id="acceptanceSubmittedLinks"></ul>
+        <p id="acceptanceSubmittedBy" class="muted"></p>
       </div>
       <div id="externalReviewFields" hidden>
         <div class="field"><label for="reviewOrganization">验收机构</label><input id="reviewOrganization" maxlength="160"></div>
@@ -1599,7 +1628,7 @@
       <p id="externalReviewRecord" hidden></p>
       <div class="field" id="returnReasonField" hidden>
         <label id="acceptanceReasonLabel" for="acceptanceReturnReason">退回原因（退回时必填）</label>
-        <textarea id="acceptanceReturnReason"></textarea>
+        <textarea id="acceptanceReturnReason" maxlength="2000"></textarea>
       </div>
       <div id="acceptanceError" role="alert"></div>
       <div class="dialog-actions">
@@ -1762,6 +1791,8 @@ const acceptanceError = document.querySelector('#acceptanceError');
 const reviewOrganization = document.querySelector('#reviewOrganization');
 const reviewConclusion = document.querySelector('#reviewConclusion');
 const reviewEvidence = document.querySelector('#reviewEvidence');
+const acceptanceMaterialSummary = document.querySelector('#acceptanceMaterialSummary');
+const acceptanceMaterialLinks = document.querySelector('#acceptanceMaterialLinks');
 const wbsRequiresAcceptance = document.querySelector('#wbsRequiresAcceptance');
 
 let messageTimer;
@@ -1770,6 +1801,7 @@ let serverRevision = null;
 let sharedActor = '';
 let sharedRole = '';
 let thirdPartyAcceptance = false;
+let materialsSubmission = false;
 const ROLE_NAMES = {owner: '所有者', manager: '项目管理员', submitter: '提交者', reviewer: '审批者', viewer: '只读成员'};
 
 function canManage() {
@@ -1788,7 +1820,7 @@ function canReview(task) {
 }
 function canReviewInternally(task) {
   return thirdPartyAcceptance && sharedRole === 'owner' && task.requiresAcceptance &&
-    ['pending', 'accepted', 'returned'].includes(task.acceptanceStatus);
+    (materialsSubmission ? ['pending', 'accepted'] : ['pending', 'accepted', 'returned']).includes(task.acceptanceStatus);
 }
 
 let syncInFlight = false;
@@ -1919,6 +1951,7 @@ function normalizeState(raw) {
         reviewedBy: text(task.reviewedBy),
         ...(validExternalReview(task.officialReview) ? {officialReview: task.officialReview} : {}),
         ...(validInternalReview(task.internalReview) ? {internalReview: task.internalReview} : {}),
+        ...(validAcceptanceSubmission(task.acceptanceSubmission) ? {acceptanceSubmission: task.acceptanceSubmission} : {}),
         delayCount: Math.max(0, Number(task.delayCount) || 0)
       };
     });
@@ -2000,7 +2033,8 @@ function setSyncStatus(mode, label, title = '') {
   syncStatus.title = title || label;
 }
 
-function acceptSharedState({state, actor, role, acceptanceMode}) {
+function acceptSharedState({state, actor, role, acceptanceMode, acceptanceFlow}) {
+  materialsSubmission = acceptanceFlow === 'materials';
   thirdPartyAcceptance = acceptanceMode === 'third_party';
   ROLE_NAMES.reviewer = thirdPartyAcceptance ? '第三方验收员' : '审批者';
   const label = thirdPartyAcceptance ? '第三方验收' : '里程碑验收';
@@ -2050,6 +2084,17 @@ async function sendTaskAction(task, action, fields = {}) {
     }
     if (response.status === 403) {
       showMessage('当前账号没有权限执行此操作。', 'error');
+      return false;
+    }
+    if (response.status === 400) {
+      const result = await response.json();
+      const errors = {
+        materials_required: '请填写材料说明。',
+        invalid_material_links: '请检查附件链接是否为有效的 HTTPS 地址。',
+        invalid_acceptance_criteria: '验收条件或缺失证据说明过长。',
+        review_details_required: '请完整填写验收机构、结论和凭证。'
+      };
+      showMessage(errors[result.error] || '请检查表单内容后重试。', 'error');
       return false;
     }
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -2694,8 +2739,9 @@ function acceptanceLocked(task) {
 }
 
 function canSubmitAcceptance(task) {
-  return task.requiresAcceptance && !acceptanceLocked(task) && task.status === 'done' &&
-    Boolean(task.deliverable.trim());
+  return task.requiresAcceptance && !acceptanceLocked(task) && (
+    materialsSubmission || (task.status === 'done' && Boolean(task.deliverable.trim()))
+  );
 }
 
 function maySubmitAcceptance(task) {
@@ -2706,9 +2752,49 @@ function maySubmitAcceptance(task) {
 function acceptanceButton(task) {
   if (!task?.requiresAcceptance) return '';
   const label = canReviewInternally(task) ? '内部审批' : canReview(task) ? '处理验收' :
-    canSubmitAcceptance(task) && maySubmitAcceptance(task) ? '提交验收' :
+    canSubmitAcceptance(task) && maySubmitAcceptance(task) ? (materialsSubmission ? '提交材料' : '提交验收') :
     !acceptanceLocked(task) && canManage() ? '验收条件' : '查看验收';
   return `<button class="small secondary" type="button" data-task-action="acceptance" data-id="${escapeHTML(task.id)}">${label}</button>`;
+}
+
+function validAcceptanceSubmission(submission) {
+  return submission && typeof submission.summary === 'string' &&
+    typeof submission.submittedAt === 'string' && typeof submission.submittedBy === 'string' &&
+    Array.isArray(submission.links) && submission.links.every(link => typeof link === 'string');
+}
+
+function safeMaterialLink(value) {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'https:' && !parsed.username && !parsed.password;
+  } catch {
+    return false;
+  }
+}
+
+function renderAcceptanceMaterials(task, editable) {
+  const submission = task.acceptanceSubmission;
+  document.querySelector('#acceptanceMaterialFields').hidden = !editable;
+  acceptanceMaterialSummary.value = submission?.summary || '';
+  acceptanceMaterialLinks.value = submission?.links.join('\n') || '';
+  const record = document.querySelector('#acceptanceSubmittedMaterials');
+  record.hidden = !submission || editable;
+  document.querySelector('#acceptanceSubmittedSummary').textContent = submission?.summary || '';
+  document.querySelector('#acceptanceSubmittedBy').textContent = submission ?
+    `${submission.submittedBy} · ${submission.submittedAt.slice(0, 10)}` : '';
+  const links = document.querySelector('#acceptanceSubmittedLinks');
+  links.replaceChildren();
+  for (const value of submission?.links || []) {
+    if (!safeMaterialLink(value)) continue;
+    const item = document.createElement('li');
+    const link = document.createElement('a');
+    link.href = value;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = value;
+    item.append(link);
+    links.append(item);
+  }
 }
 
 function validExternalReview(review) {
@@ -2746,6 +2832,7 @@ function renderAcceptance() {
           <h4>${escapeHTML(task.code)} ${escapeHTML(task.title)}</h4>
           <p>交付物：${escapeHTML(task.deliverable || '未填写')}</p>
           ${task.acceptanceReturnReason ? `<p>上次退回：${escapeHTML(task.acceptanceReturnReason)}</p>` : ''}
+          ${task.acceptanceSubmission ? `<p>已提交材料 · ${task.acceptanceSubmission.links.length} 个附件链接</p>` : ''}
           ${task.internalReview ? `<p class="external-review-record">${escapeHTML(formatInternalReview(task.internalReview))}</p>` : ''}
           ${task.officialReview ? `<p class="external-review-record">${escapeHTML(formatExternalReview(task.officialReview))}</p>` :
             thirdPartyAcceptance && task.acceptanceStatus === 'accepted' ? '<p>历史验收 · 未登记第三方凭证</p>' : ''}
@@ -3278,6 +3365,7 @@ function openAcceptanceSettings(taskId) {
   const locked = acceptanceLocked(task) || !canManage();
   const review = canReview(task);
   const internalReview = canReviewInternally(task);
+  const canSubmit = maySubmitAcceptance(task) && canSubmitAcceptance(task);
   acceptanceTaskId.value = task.id;
   acceptanceTaskName.textContent = `${task.code} ${task.title}`;
   document.querySelector('#acceptanceDetails').textContent =
@@ -3288,6 +3376,14 @@ function openAcceptanceSettings(taskId) {
   acceptanceCriteria.value = task.acceptanceCriteria;
   acceptanceGap.value = task.acceptanceGap;
   acceptanceCriteria.readOnly = acceptanceGap.readOnly = locked;
+  const steps = document.querySelector('#acceptanceFlowSteps');
+  steps.hidden = !materialsSubmission;
+  const step = acceptanceLocked(task) ? 2 : task.acceptanceCriteria || canSubmit ? 1 : 0;
+  [...steps.children].forEach((item, index) => {
+    if (step === index) item.setAttribute('aria-current', 'step');
+    else item.removeAttribute('aria-current');
+  });
+  renderAcceptanceMaterials(task, materialsSubmission && canSubmit);
   acceptanceReturnReason.value = '';
   reviewOrganization.value = reviewConclusion.value = reviewEvidence.value = '';
   document.querySelector('#externalReviewFields').hidden = !review || !thirdPartyAcceptance;
@@ -3302,8 +3398,12 @@ function openAcceptanceSettings(taskId) {
   document.querySelector('#returnReasonField').hidden = !review && !internalReview;
   document.querySelector('#acceptanceReasonLabel').textContent = internalReview ?
     '内部审批意见（退回时必填）' : '退回原因（退回时必填）';
-  const actions = {save: !locked, submit: maySubmitAcceptance(task) && canSubmitAcceptance(task),
-    approve: review, return: review, 'internal-approve': internalReview, 'internal-return': internalReview};
+  const actions = {save: !locked, submit: canSubmit,
+    approve: review, return: review, 'internal-approve': internalReview,
+    'internal-return': internalReview && (!materialsSubmission || task.acceptanceStatus !== 'accepted')};
+  acceptanceForm.querySelector('[value="submit"]').textContent = materialsSubmission ? '提交验收材料' : '提交验收';
+  acceptanceForm.querySelector('[value="approve"]').textContent = thirdPartyAcceptance ? '第三方通过' : '通过';
+  acceptanceForm.querySelector('[value="return"]').textContent = thirdPartyAcceptance ? '第三方退回' : '退回';
   for (const button of acceptanceForm.querySelectorAll('[name="action"]')) {
     button.hidden = button.disabled = !actions[button.value];
   }
@@ -3405,6 +3505,25 @@ acceptanceForm.addEventListener('submit', async event => {
       return;
     }
     const fields = {reason};
+    if (action === 'submit' && materialsSubmission) {
+      if (!maySubmitAcceptance(task) || !canSubmitAcceptance(task)) return;
+      fields.summary = acceptanceMaterialSummary.value.trim();
+      fields.links = acceptanceMaterialLinks.value.split(/\r?\n/).map(link => link.trim()).filter(Boolean);
+      if (!fields.summary) {
+        acceptanceError.textContent = '请填写材料说明。';
+        acceptanceMaterialSummary.focus();
+        return;
+      }
+      if (fields.links.length > 10 || fields.links.some(link => link.length > 500 || !safeMaterialLink(link))) {
+        acceptanceError.textContent = '最多填写 10 个有效的 HTTPS 链接，每行一个。';
+        acceptanceMaterialLinks.focus();
+        return;
+      }
+      if (canManage()) {
+        fields.criteria = acceptanceCriteria.value.trim();
+        fields.gap = acceptanceGap.value.trim();
+      }
+    }
     if ((action === 'internal-approve' || action === 'internal-return') && !canReviewInternally(task)) return;
     if ((action === 'approve' || action === 'return') && !canReview(task)) return;
     if (thirdPartyAcceptance && (action === 'approve' || action === 'return')) {
@@ -3418,7 +3537,7 @@ acceptanceForm.addEventListener('submit', async event => {
     }
     if (await sendTaskAction(task, action, fields)) {
       closeDialog(acceptanceDialog);
-      showMessage('验收操作已保存。');
+      showMessage(action === 'submit' ? '验收材料已提交，等待审批。' : '验收操作已保存。');
     }
     return;
   }
@@ -3449,9 +3568,17 @@ acceptanceForm.addEventListener('submit', async event => {
     acceptanceError.textContent = '保存失败，请检查浏览器存储后重试。';
     return;
   }
-  closeDialog(acceptanceDialog);
   renderAll();
-  showMessage(`“${task.title}” · ${ACCEPTANCE_LABELS[task.acceptanceStatus]}`);
+  if (action === 'save' && materialsSubmission && canSubmitAcceptance(task) && maySubmitAcceptance(task)) {
+    document.querySelector('#acceptanceFlowSteps li[aria-current]')?.removeAttribute('aria-current');
+    document.querySelector('#acceptanceFlowSteps').children[1].setAttribute('aria-current', 'step');
+    acceptanceError.textContent = '';
+    acceptanceMaterialSummary.focus();
+    showMessage('验收条件已保存，可以继续填写材料。');
+    return;
+  }
+  closeDialog(acceptanceDialog);
+  showMessage(action === 'save' ? '验收条件已保存。' : `“${task.title}” · ${ACCEPTANCE_LABELS[task.acceptanceStatus]}`);
 });
 
 document.querySelectorAll('[data-close-dialog]').forEach(button => {

@@ -31,6 +31,26 @@ returns boolean language sql set search_path = '' as $$
         )
       )
     ) or (
+      nullif(proposed->'acceptanceSubmission', 'null'::jsonb)
+        is distinct from nullif(previous->'acceptanceSubmission', 'null'::jsonb)
+      and not (
+        previous is null and proposed->'acceptanceSubmission' is not null
+        and exists (
+          select 1 from workspace_private.revisions r
+          where r.document->'tasks' @> jsonb_build_array(jsonb_build_object(
+            'id', proposed->'id', 'projectId', proposed->'projectId',
+            'acceptanceSubmission', proposed->'acceptanceSubmission'
+          ))
+        )
+      )
+    ) or (
+      previous->'acceptanceSubmission' is not null
+      and previous->>'acceptanceStatus' = 'pending' and exists (
+        select 1 from unnest(array['owner','projectId','status','deliverable','acceptanceStatus',
+          'requiresAcceptance','acceptanceCriteria','acceptanceGap','submittedBy']) as field
+        where previous->field is distinct from proposed->field
+      )
+    ) or (
       previous is not null and coalesce(previous->>'acceptanceStatus','not_ready') <> 'accepted'
       and proposed->>'acceptanceStatus' = 'accepted'
     ) or (
@@ -87,6 +107,8 @@ declare
   conclusion text;
   evidence text;
   verdict text;
+  material_summary text;
+  material_links jsonb;
 begin
   -- Hold membership for the duration of a read or write so revocation is ordered with it.
   select m.role, lower(u.email) into member_role,email
@@ -150,14 +172,51 @@ begin
         if action = 'update' and payload->>'status' in ('todo','doing','done')
             and jsonb_typeof(payload->'deliverable') = 'string' and btrim(payload->>'deliverable') <> '' then
           task := task || jsonb_build_object('status',payload->>'status','deliverable',btrim(payload->>'deliverable'));
-        elsif action = 'submit' and task->>'status' = 'done' and btrim(coalesce(task->>'deliverable','')) <> ''
+        elsif action = 'submit'
           and coalesce(task->>'requiresAcceptance', case when coalesce(task->>'acceptanceCriteria','') <> ''
             or coalesce(task->>'acceptanceGap','') <> '' or acceptance = 'returned' then 'true' else 'false' end) = 'true' then
-          task := (task - 'internalReview') || jsonb_build_object('acceptanceStatus','pending','submittedBy',email,'reviewedBy','');
+          material_links := coalesce(payload->'links', '[]'::jsonb);
+          if payload ? 'summary' then
+            material_summary := btrim(payload->>'summary', E' \t\r\n');
+            if jsonb_typeof(payload->'summary') is distinct from 'string'
+              or char_length(material_summary) not between 1 and 4000 then
+              return jsonb_build_object('status',400,'error','materials_required');
+            end if;
+          else
+            -- Retain compatibility with already open tabs that submit an existing deliverable.
+            material_summary := btrim(coalesce(task->>'deliverable',''), E' \t\r\n');
+            if task->>'status' is distinct from 'done' or material_summary = '' then
+              return jsonb_build_object('status',400,'error','materials_required');
+            end if;
+          end if;
+          if jsonb_typeof(material_links) <> 'array' then
+            return jsonb_build_object('status',400,'error','invalid_material_links');
+          end if;
+          if jsonb_array_length(material_links) > 10 or exists (
+            select 1 from jsonb_array_elements(material_links) as link
+            where jsonb_typeof(link) <> 'string' or char_length(link#>>'{}') > 500
+              or link#>>'{}' !~* '^https://[^/?#@[:space:]]+([/?#][^[:space:]]*)?$'
+              or position(chr(92) in link#>>'{}') > 0
+          ) then return jsonb_build_object('status',400,'error','invalid_material_links'); end if;
+          if member_role = 'owner' then
+            if (payload ? 'criteria' and (jsonb_typeof(payload->'criteria') is distinct from 'string'
+                or char_length(payload->>'criteria') > 4000))
+              or (payload ? 'gap' and (jsonb_typeof(payload->'gap') is distinct from 'string'
+                or char_length(payload->>'gap') > 2000)) then
+              return jsonb_build_object('status',400,'error','invalid_acceptance_criteria');
+            end if;
+            task := task || jsonb_build_object(
+              'acceptanceCriteria', coalesce(payload->>'criteria', task->>'acceptanceCriteria',''),
+              'acceptanceGap', coalesce(payload->>'gap', task->>'acceptanceGap',''));
+          end if;
+          task := (task - 'internalReview') || jsonb_build_object('status','done','requiresAcceptance',true,
+            'acceptanceStatus','pending','submittedBy',email,'reviewedBy','',
+            'acceptanceSubmission',jsonb_build_object('summary',material_summary,'links',material_links,
+              'submittedBy',email,'submittedAt',now()));
         else return jsonb_build_object('status',403,'error','forbidden');
         end if;
-      elsif action in ('internal-approve','internal-return') and member_role = 'owner'
-        and acceptance in ('pending','accepted','returned') then
+      elsif member_role = 'owner' and ((action = 'internal-approve' and acceptance in ('pending','accepted'))
+          or (action = 'internal-return' and acceptance = 'pending')) then
         conclusion := coalesce(btrim(payload->>'reason'), '');
         if (payload ? 'reason' and jsonb_typeof(payload->'reason') is distinct from 'string')
           or char_length(conclusion) > 2000
@@ -167,6 +226,9 @@ begin
         verdict := case when action = 'internal-approve' then 'accepted' else 'returned' end;
         task := task || jsonb_build_object('internalReview', jsonb_build_object(
           'verdict',verdict,'conclusion',conclusion,'reviewer',email,'reviewedAt',now()));
+        if action = 'internal-return' then
+          task := task || jsonb_build_object('acceptanceStatus','returned','acceptanceReturnReason',conclusion);
+        end if;
       elsif acceptance = 'pending' and member_role = 'reviewer' and not assigned
         and lower(coalesce(task->>'submittedBy','')) <> email and action in ('approve','return') then
         organization := btrim(payload->>'organization');
@@ -201,7 +263,7 @@ begin
   else
     return jsonb_build_object('status',404,'error','not_found');
   end if;
-  return jsonb_build_object('role',member_role,'actor',email,'acceptanceMode','third_party',
+  return jsonb_build_object('role',member_role,'actor',email,'acceptanceMode','third_party','acceptanceFlow','materials',
     'state',workspace_private.scoped_document(doc,email,member_role) || jsonb_build_object('revision',current_revision));
 end;
 $$;
