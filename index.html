@@ -969,7 +969,7 @@
   }
   @media print { [data-theme="yellow"] body, [data-theme="yellow"] .workspace-header {background:#fff} }
   :is([data-role="viewer"], [data-role="reviewer"], [data-role="submitter"])
-    :is(#projectForm, #riskEditor, #lockBaselineButton, #applyDelayButton, [data-blocker-edit],
+    :is(#projectForm, #riskEditor, [data-blocker-edit],
          [data-project-action="delete"]) { display:none; }
   :is([data-role="viewer"], [data-role="reviewer"]) #taskEditor { display:none; }
   [data-role="submitter"] #taskEditor:has(#cancelTaskEdit[hidden]) { display:none; }
@@ -1048,32 +1048,38 @@
   .board-title-row h2 { margin-bottom:0; }
   #toggleBoard[hidden], #boardArea[hidden] { display:none; }
   .board-head { border-radius:8px; margin-top:14px; gap:12px; }
-  .board { align-items:start; gap:12px; }
-  .board > .empty { grid-column:1 / -1; }
-  .board-column { min-height:0; padding:12px; border-radius:10px; background:#f7f8f5; border-color:var(--line); }
-  .board-column h3 { align-items:center; color:var(--navy); }
-  .board-column .count { padding:2px 8px; border-radius:999px; background:var(--blue-soft); color:var(--navy); font-weight:700; }
-  .board-card { border-radius:8px; padding:12px; background:#fff; border-inline-start:3px solid var(--line); }
-  [data-board-column="doing"] .board-card { border-inline-start-color:var(--gold); }
-  [data-board-column="done"] .board-card { border-inline-start-color:var(--green); }
-  .board-card-title { display:flex; align-items:baseline; gap:8px; }
-  .board-card-title .level-tag { flex:none; }
-  .board-card-title h4 { margin:0; }
-  .board-card-details { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 10px; margin:9px 0; font-size:12px; }
-  .board-card-details div { display:flex; flex-wrap:wrap; gap:2px 6px; min-width:0; }
-  .board-card-details dt { color:var(--muted); }
-  .board-card-details dd { margin:0; overflow-wrap:anywhere; }
-  .board-card-deliverable { grid-column:1 / -1; }
-  .board-card-actions { display:flex; flex-wrap:wrap; align-items:center; gap:5px; padding-top:8px; border-top:1px solid var(--line); }
-  .board-card-actions label { flex:1 1 88px; min-width:0; }
-  .board-card-actions select { margin:0; min-height:31px; }
-  .board-card-actions .why-btn { margin:0; width:auto; }
-  .board-more { width:100%; margin-top:10px; }
+  .gantt-meta,.gantt-legend,.gantt-task-title,.gantt-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+  .gantt-meta { justify-content:space-between; margin-bottom:10px; color:var(--muted); font-size:13px; }
+  .gantt-legend { gap:14px; }
+  .gantt-legend span { display:inline-flex; align-items:center; gap:5px; }
+  .gantt-key { width:10px; height:10px; border-radius:50%; }
+  .gantt-key[data-status="todo"],.gantt-bar[data-status="todo"] { background:#64768b; }
+  .gantt-key[data-status="doing"],.gantt-bar[data-status="doing"] { background:#b57915; }
+  .gantt-key[data-status="done"],.gantt-bar[data-status="done"] { background:#34794d; }
+  .gantt-scroll { overflow:auto; max-height:560px; border:1px solid var(--line); border-radius:10px; }
+  .gantt-grid { min-width:830px; }
+  .gantt-row { display:grid; grid-template-columns:260px minmax(0,1fr); border-bottom:1px solid var(--line); }
+  .gantt-row:last-child { border-bottom:0; }
+  .gantt-header { position:sticky; top:0; z-index:3; background:var(--blue-soft); color:var(--navy); }
+  .gantt-header > strong,.gantt-task { padding:10px 12px; }
+  .gantt-header > strong,.gantt-task { position:sticky; left:0; z-index:2; }
+  .gantt-header > strong { background:var(--blue-soft); }
+  .gantt-task { border-right:1px solid var(--line); background:#fff; }
+  .gantt-task-title strong { overflow-wrap:anywhere; }
+  .gantt-task-meta { display:block; margin:4px 0 7px; font-size:12px; color:var(--muted); }
+  .gantt-actions select { min-height:31px; padding:4px 7px; }
+  .gantt-axis,.gantt-track { position:relative; min-height:42px; }
+  .gantt-axis time { position:absolute; top:11px; padding-left:4px; font-size:12px; white-space:nowrap; }
+  .gantt-line,.gantt-today { position:absolute; inset-block:0; border-left:1px solid var(--line); }
+  .gantt-today { border-color:#b64837; z-index:1; }
+  .gantt-bar { position:absolute; top:50%; height:17px; min-width:4px; transform:translateY(-50%); border-radius:4px; }
+  .gantt-unscheduled { display:block; padding:12px; color:var(--muted); font-size:12px; }
+  #externalReviewRecord,.external-review-record { white-space:pre-line; overflow-wrap:anywhere; }
   @media(max-width:600px) {
     main { padding-inline:12px; }
     main > section { padding-inline:14px; }
     .board-title-row { align-items:center; }
-    .board-column { padding:10px; }
+    .gantt-row { grid-template-columns:164px minmax(0,1fr); }
   }
 </style>
 </head>
@@ -1091,11 +1097,9 @@
     <a href="#todoHeading">项目待办</a>
     <a href="#projectHeading">项目管理</a>
     <a href="#wbsHeading">任务与进度</a>
-    <a href="#boardHeading">进度看板</a>
+    <a href="#boardHeading">进度甘特图</a>
     <a href="#riskHeading">风险与问题</a>
-    <a href="#acceptancePanel">里程碑验收</a>
-    <a href="#delaySimulationPanel">变更与复盘</a>
-    <a href="#replayPanel">项目复盘</a>
+    <a id="acceptanceNav" href="#acceptancePanel">里程碑验收</a>
     <a href="#backupHeading">数据管理</a>
   </nav>
 </aside>
@@ -1316,8 +1320,8 @@
 
   <section aria-labelledby="boardHeading">
     <div class="board-title-row">
-      <h2 id="boardHeading">进度看板</h2>
-      <button id="toggleBoard" type="button" class="secondary" aria-controls="boardArea" aria-expanded="true" hidden>收起看板</button>
+      <h2 id="boardHeading">进度甘特图</h2>
+      <button id="toggleBoard" type="button" class="secondary" aria-controls="boardArea" aria-expanded="true" hidden>收起甘特图</button>
     </div>
     <div class="board-head">
       <div>
@@ -1327,7 +1331,7 @@
       </div>
       <div id="boardSummary" class="muted">尚未选择项目</div>
     </div>
-    <div id="boardArea" class="board"></div>
+    <div id="boardArea"></div>
   </section>
 
   <section aria-labelledby="riskHeading">
@@ -1427,30 +1431,8 @@
   </section>
 
   <section aria-labelledby="innovationHeading">
-    <h2 id="innovationHeading">创新管理</h2>
-    <p class="hint">围绕排期、阻塞、复盘、资源冲突和验收提供可操作的决策支持，所有结果都读取当前项目数据。</p>
+    <h2 id="innovationHeading">项目协同</h2>
     <div class="innovation-stack">
-      <article id="delaySimulationPanel" class="innovation-card">
-        <div class="panel-heading">
-          <div>
-            <h3><span class="panel-badge">模拟</span>延期影响预演</h3>
-            <p>选择任务并输入延期天数，先查看后续排期与最终交付日期变化，确认后才会应用。</p>
-          </div>
-        </div>
-        <form id="delayForm" class="toolbar-row">
-          <div class="field">
-            <label for="delayTaskSelect">选择要延期的任务</label>
-            <select id="delayTaskSelect"></select>
-          </div>
-          <div class="field">
-            <label for="delayDays">延期天数</label>
-            <input id="delayDays" type="number" min="1" max="90" value="2" required>
-          </div>
-          <button type="submit">预演延期影响</button>
-        </form>
-        <div id="delayResult" class="simulation-result" aria-live="polite"></div>
-      </article>
-
       <article id="blockerPanel" class="innovation-card">
         <div class="panel-heading">
           <div>
@@ -1460,18 +1442,6 @@
           <button id="openBlockersButton" class="secondary" type="button">查看当前项目卡点</button>
         </div>
         <div id="blockerSummary"></div>
-      </article>
-
-      <article id="replayPanel" class="innovation-card">
-        <div class="panel-heading">
-          <div>
-            <h3><span class="panel-badge">复盘</span>项目复盘回放</h3>
-            <p>将当前计划和锁定时的基准计划对照，查看最长延期、中途新增任务和排期调整次数。</p>
-          </div>
-          <button id="lockBaselineButton" class="secondary" type="button">锁定当前计划为基线</button>
-        </div>
-        <div id="replaySummary" class="metric-grid"></div>
-        <div id="replayTable" class="table-wrap"></div>
       </article>
 
       <article id="collisionPanel" class="innovation-card">
@@ -1488,8 +1458,8 @@
       <article id="acceptancePanel" class="innovation-card">
         <div class="panel-heading">
           <div>
-            <h3><span class="panel-badge">验收</span>里程碑验收清单</h3>
-            <p>任务完成不等于验收通过。这里单独检查交付物、验收条件与缺失证据。</p>
+            <h3 id="acceptancePanelTitle">里程碑验收</h3>
+            <p id="acceptancePanelDescription">查看交付物、验收条件和处理结果。</p>
           </div>
           <span id="acceptanceSummary" class="status-chip">0 / 0 已验收</span>
         </div>
@@ -1566,6 +1536,12 @@
         <label for="acceptanceGap">仍缺少的证据</label>
         <input id="acceptanceGap" placeholder="例如：还缺演示视频">
       </div>
+      <div id="externalReviewFields" hidden>
+        <div class="field"><label for="reviewOrganization">验收机构</label><input id="reviewOrganization" maxlength="160"></div>
+        <div class="field"><label for="reviewConclusion">验收结论</label><textarea id="reviewConclusion" maxlength="2000"></textarea></div>
+        <div class="field"><label for="reviewEvidence">验收凭证（报告编号或链接）</label><input id="reviewEvidence" maxlength="500"></div>
+      </div>
+      <p id="externalReviewRecord" hidden></p>
       <div class="field" id="returnReasonField" hidden>
         <label for="acceptanceReturnReason">退回原因（退回时必填）</label>
         <textarea id="acceptanceReturnReason"></textarea>
@@ -1675,8 +1651,6 @@ const cancelTaskEdit = document.querySelector('#cancelTaskEdit');
 const wbsTableBody = document.querySelector('#wbsTableBody');
 const boardArea = document.querySelector('#boardArea');
 const toggleBoard = document.querySelector('#toggleBoard');
-const BOARD_PREVIEW_LIMIT = 3;
-const expandedBoardColumns = new Set();
 let boardProjectId = null;
 let boardCollapsed = false;
 const completionText = document.querySelector('#completionText');
@@ -1704,15 +1678,8 @@ const syncStatusText = document.querySelector('#syncStatusText');
 const sidebar = document.querySelector('#sidebar');
 const sidebarToggle = document.querySelector('#sidebarToggle');
 const sidebarBackdrop = document.querySelector('#sidebarBackdrop');
-const delayForm = document.querySelector('#delayForm');
-const delayTaskSelect = document.querySelector('#delayTaskSelect');
-const delayDays = document.querySelector('#delayDays');
-const delayResult = document.querySelector('#delayResult');
 const blockerSummary = document.querySelector('#blockerSummary');
 const openBlockersButton = document.querySelector('#openBlockersButton');
-const replaySummary = document.querySelector('#replaySummary');
-const replayTable = document.querySelector('#replayTable');
-const lockBaselineButton = document.querySelector('#lockBaselineButton');
 const collisionCount = document.querySelector('#collisionCount');
 const collisionList = document.querySelector('#collisionList');
 const acceptanceSummary = document.querySelector('#acceptanceSummary');
@@ -1733,6 +1700,9 @@ const acceptanceCriteria = document.querySelector('#acceptanceCriteria');
 const acceptanceGap = document.querySelector('#acceptanceGap');
 const acceptanceReturnReason = document.querySelector('#acceptanceReturnReason');
 const acceptanceError = document.querySelector('#acceptanceError');
+const reviewOrganization = document.querySelector('#reviewOrganization');
+const reviewConclusion = document.querySelector('#reviewConclusion');
+const reviewEvidence = document.querySelector('#reviewEvidence');
 const wbsRequiresAcceptance = document.querySelector('#wbsRequiresAcceptance');
 
 let messageTimer;
@@ -1740,6 +1710,7 @@ let data = loadState();
 let serverRevision = null;
 let sharedActor = '';
 let sharedRole = '';
+let thirdPartyAcceptance = false;
 const ROLE_NAMES = {owner: '所有者', manager: '项目管理员', submitter: '提交者', reviewer: '审批者', viewer: '只读成员'};
 
 function canManage() {
@@ -1752,8 +1723,9 @@ function canUpdateTask(task) {
 }
 
 function canReview(task) {
-  return pendingAcceptance(task) && (!sharedMode || sharedRole === 'owner' ||
-    (sharedRole === 'reviewer' && !assignedTo(task, sharedActor) && task.submittedBy !== sharedActor));
+  return pendingAcceptance(task) && (!sharedMode || (!thirdPartyAcceptance && sharedRole === 'owner') ||
+    (sharedRole === 'reviewer' && !assignedTo(task, sharedActor) &&
+      task.submittedBy.toLowerCase() !== sharedActor.toLowerCase()));
 }
 let syncInFlight = false;
 let syncConflict = false;
@@ -1809,13 +1781,6 @@ function taskSnapshot(task) {
     level: task.level,
     parentId: task.parentId
   };
-}
-
-function projectTaskSnapshot(projectId) {
-  return data.tasks
-    .filter(task => task.projectId === projectId)
-    .sort(codeSort)
-    .map(taskSnapshot);
 }
 
 function normalizeState(raw) {
@@ -1888,6 +1853,7 @@ function normalizeState(raw) {
         acceptanceReturnReason: requiresAcceptance ? text(task.acceptanceReturnReason) : '',
         submittedBy: text(task.submittedBy),
         reviewedBy: text(task.reviewedBy),
+        ...(validExternalReview(task.officialReview) ? {officialReview: task.officialReview} : {}),
         delayCount: Math.max(0, Number(task.delayCount) || 0)
       };
     });
@@ -1969,7 +1935,17 @@ function setSyncStatus(mode, label, title = '') {
   syncStatus.title = title || label;
 }
 
-function acceptSharedState({state, actor, role}) {
+function acceptSharedState({state, actor, role, acceptanceMode}) {
+  thirdPartyAcceptance = acceptanceMode === 'third_party';
+  ROLE_NAMES.reviewer = thirdPartyAcceptance ? '第三方验收员' : '审批者';
+  const label = thirdPartyAcceptance ? '第三方验收' : '里程碑验收';
+  document.querySelector('#acceptanceNav').textContent = label;
+  document.querySelector('#acceptancePanelTitle').textContent = label;
+  document.querySelector('#acceptanceDialogTitle').textContent = thirdPartyAcceptance ? label : '工作包验收';
+  document.querySelector('#acceptancePanelDescription').textContent = thirdPartyAcceptance
+    ? '外部验收人员独立审核交付物，并记录机构、结论和凭证。'
+    : '查看交付物、验收条件和处理结果。';
+  document.querySelector('#memberRole [value="reviewer"]').textContent = ROLE_NAMES.reviewer;
   if (sharedActor && (sharedActor !== actor || sharedRole !== role)) {
     document.querySelectorAll('dialog[open]').forEach(closeDialog);
   }
@@ -2307,7 +2283,7 @@ function syncBoardVisibility(hasTasks) {
   toggleBoard.hidden = !hasTasks;
   boardArea.hidden = hasTasks && boardCollapsed;
   toggleBoard.setAttribute('aria-expanded', String(!boardArea.hidden));
-  toggleBoard.textContent = boardArea.hidden ? '展开看板' : '收起看板';
+  toggleBoard.textContent = boardArea.hidden ? '展开甘特图' : '收起甘特图';
 }
 
 toggleBoard.addEventListener('click', () => {
@@ -2320,7 +2296,6 @@ function renderBoard() {
   if (boardProjectId !== (project?.id ?? null)) {
     boardProjectId = project?.id ?? null;
     boardCollapsed = false;
-    expandedBoardColumns.clear();
   }
   if (!project) {
     completionText.textContent = '0%';
@@ -2343,48 +2318,66 @@ function renderBoard() {
     return;
   }
 
-  boardArea.innerHTML = TASK_STATUSES.map(status => {
-    const statusTasks = tasks.filter(task => task.status === status);
-    const expanded = expandedBoardColumns.has(status);
-    const visibleTasks = expanded ? statusTasks : statusTasks.slice(0, BOARD_PREVIEW_LIMIT);
-    const remaining = statusTasks.length - BOARD_PREVIEW_LIMIT;
-    const cards = visibleTasks.length
-      ? visibleTasks.map(task => `
-        <article class="board-card">
-          <div class="board-card-title">
-            <span class="level-tag">${escapeHTML(task.code)}</span>
-            <h4>${escapeHTML(task.title)}</h4>
-          </div>
-          <dl class="board-card-details">
-            <div><dt>负责人</dt><dd>${escapeHTML(task.owner || '未填写')}</dd></div>
-            <div><dt>截止</dt><dd>${escapeHTML(task.endDate || '未填写')}</dd></div>
-            <div class="board-card-deliverable"><dt>交付物</dt><dd>${escapeHTML(task.deliverable || '未填写')}</dd></div>
-            ${task.requiresAcceptance ? `<div class="board-card-deliverable"><dt>验收</dt><dd>${ACCEPTANCE_LABELS[task.acceptanceStatus]}</dd></div>` : ''}
-          </dl>
-          <div class="board-card-actions">
-          <label>
-            <span class="visually-hidden">修改 ${escapeHTML(task.title)} 的状态</span>
-            <select data-board-action="status" data-id="${escapeHTML(task.id)}"${canUpdateTask(task) ? '' : ' disabled'}>
-              ${TASK_STATUSES.map(item => `<option value="${item}"${item === status ? ' selected' : ''}>${TASK_STATUS_LABELS[item]}</option>`).join('')}
-            </select>
-          </label>
-          ${acceptanceButton(task)}
-          <button class="small secondary why-btn" type="button" data-board-action="why" data-id="${escapeHTML(task.id)}">卡点详情</button>
-          </div>
-        </article>
-      `).join('')
-      : '<div class="empty">暂无任务</div>';
-    return `
-      <div class="board-column" data-board-column="${status}">
-        <h3>${TASK_STATUS_LABELS[status]} <span class="count">${statusTasks.length}</span></h3>
-        <div id="board-cards-${status}">${cards}</div>
-        ${remaining > 0 ? `<button class="secondary board-more" type="button" data-expand-board="${status}"
-          aria-expanded="${expanded}" aria-controls="board-cards-${status}">
-          ${expanded ? '收起更多任务' : `展开其余 ${remaining} 项`}
-        </button>` : ''}
+  const dayMs = 86400000;
+  const dateNumber = value => /^\d{4}-\d{2}-\d{2}$/.test(value || '') ? Date.parse(value + 'T00:00:00Z') / dayMs : NaN;
+  const entries = tasks.map(task => ({task, start: dateNumber(task.startDate), end: dateNumber(task.endDate)}));
+  const dated = entries.filter(item => Number.isFinite(item.start) && item.end >= item.start);
+  const start = dated.reduce((min, item) => Math.min(min, item.start), Infinity);
+  const end = dated.reduce((max, item) => Math.max(max, item.end), -Infinity);
+  const span = dated.length ? end - start + 1 : 0;
+  const ticks = [];
+  const dateLabel = day => new Date(day * dayMs).toISOString().slice(0, 10);
+  if (span) {
+    const step = span <= 14 ? Math.max(1, Math.ceil(span / 7)) : 7 * Math.ceil(span / 56);
+    for (let day = start; day <= end; day += step) {
+      ticks.push({left: (day - start) * 100 / span, label: dateLabel(day)});
+    }
+  }
+  const today = dateNumber(formatDateValue(new Date()));
+  const todayLine = today >= start && today <= end
+    ? `<span class="gantt-today" title="今天" style="left:${(today - start) * 100 / span}%"></span>` : '';
+  boardArea.innerHTML = `
+    <div class="gantt-meta">
+      <span>${span ? `${dateLabel(start)} 至 ${dateLabel(end)}` : '暂无已排期工作包'}</span>
+      <div class="gantt-legend">
+        ${TASK_STATUSES.map(status => `<span><i class="gantt-key" data-status="${status}"></i>${TASK_STATUS_LABELS[status]}
+          <strong>${tasks.filter(task => task.status === status).length}</strong></span>`).join('')}
       </div>
-    `;
-  }).join('');
+    </div>
+    <div class="gantt-scroll" role="region" aria-label="工作包甘特图，可横向滚动" tabindex="0">
+      <div class="gantt-grid">
+        <div class="gantt-row gantt-header"><strong>工作包</strong><div class="gantt-axis">
+          ${ticks.map(tick => `<time datetime="${tick.label}" style="left:${tick.left}%">${tick.label.slice(5)}</time>`).join('')}
+        </div></div>
+        ${entries.map(({task, start: taskStart, end: taskEnd}) => {
+          const plotted = Number.isFinite(taskStart) && taskEnd >= taskStart;
+          const label = escapeHTML(task.title);
+          const range = plotted ? `${task.startDate} 至 ${task.endDate}` : '待排期';
+          return `<div class="gantt-row">
+            <div class="gantt-task">
+              <div class="gantt-task-title"><span class="level-tag">${escapeHTML(task.code)}</span><strong>${label}</strong></div>
+              <span class="gantt-task-meta">${escapeHTML(task.owner || '未分配')} · ${range}</span>
+              <div class="gantt-actions">
+                <label><span class="visually-hidden">修改 ${label} 的状态</span>
+                  <select data-board-action="status" data-id="${escapeHTML(task.id)}"${canUpdateTask(task) ? '' : ' disabled'}>
+                    ${TASK_STATUSES.map(status => `<option value="${status}"${status === task.status ? ' selected' : ''}>${TASK_STATUS_LABELS[status]}</option>`).join('')}
+                  </select>
+                </label>
+                ${acceptanceButton(task)}
+                <button class="small secondary" type="button" data-board-action="why" data-id="${escapeHTML(task.id)}">任务详情</button>
+              </div>
+            </div>
+            <div class="gantt-track">
+              ${ticks.map(tick => `<span class="gantt-line" style="left:${tick.left}%"></span>`).join('')}
+              ${todayLine}
+              ${plotted ? `<span class="gantt-bar" data-status="${task.status}"
+                title="${label} · ${range}" style="left:${(taskStart - start) * 100 / span}%;width:${(taskEnd - taskStart + 1) * 100 / span}%"></span>`
+                : '<span class="gantt-unscheduled">待排期</span>'}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
 }
 
 function riskLevel(score) {
@@ -2508,21 +2501,6 @@ function addCalendarDays(value, days) {
   return formatDateValue(date);
 }
 
-function daysBetweenDates(start, end) {
-  const startDate = parseDateValue(start);
-  const endDate = parseDateValue(end);
-  if (!startDate || !endDate) return 0;
-  return Math.round((endDate - startDate) / 86400000);
-}
-
-function projectDeliveryDate(tasks = currentTasks()) {
-  return tasks
-    .map(task => task.endDate)
-    .filter(Boolean)
-    .sort()
-    .at(-1) || '';
-}
-
 function resolveTaskByCode(code, tasks = currentTasks()) {
   return tasks.find(task => task.code === code) || null;
 }
@@ -2545,154 +2523,6 @@ function taskBlockerReasons(task, tasks = currentTasks()) {
   return [...new Set(reasons)];
 }
 
-function populateDelayTasks() {
-  const previous = delayTaskSelect.value;
-  const tasks = currentTasks().filter(task => task.level === 2).sort(codeSort);
-  delayTaskSelect.innerHTML = tasks.length
-    ? tasks.map(task => (
-      `<option value="${escapeHTML(task.id)}">${escapeHTML(task.code)} ${escapeHTML(task.title)}</option>`
-    )).join('')
-    : '<option value="">请先添加二级工作包</option>';
-  if (tasks.some(task => task.id === previous)) delayTaskSelect.value = previous;
-  const disabled = !getCurrentProject() || !tasks.length;
-  delayTaskSelect.disabled = disabled;
-  delayDays.disabled = disabled;
-  delayForm.querySelector('button[type="submit"]').disabled = disabled;
-}
-
-function calculateDelaySimulation(taskId, days) {
-  const project = getCurrentProject();
-  const tasks = currentTasks();
-  const selected = tasks.find(task => task.id === taskId);
-  if (!project || !selected) throw new Error('请选择有效的任务。');
-  const beforeByCode = new Map(tasks.map(task => [task.code, cloneJson(task)]));
-  const simulated = new Map(tasks.map(task => [task.code, cloneJson(task)]));
-  const selectedCopy = simulated.get(selected.code);
-  const duration = Math.max(0, daysBetweenDates(selected.startDate, selected.endDate));
-  selectedCopy.startDate = addCalendarDays(selected.startDate, days);
-  selectedCopy.endDate = addCalendarDays(selected.endDate, days);
-  const affected = new Set([selected.code]);
-
-  for (let pass = 0; pass < tasks.length; pass += 1) {
-    let changedInPass = false;
-    for (const original of tasks) {
-      if (original.code === selected.code || original.level !== 2) continue;
-      const dependencies = (original.dependsOn || [])
-        .map(code => simulated.get(code))
-        .filter(Boolean);
-      if (!dependencies.length) continue;
-      const latestDependencyEnd = dependencies
-        .map(task => task.endDate)
-        .filter(Boolean)
-        .sort()
-        .at(-1);
-      if (!latestDependencyEnd || !original.startDate) continue;
-      const earliestStart = addCalendarDays(latestDependencyEnd, 1);
-      const current = simulated.get(original.code);
-      if (earliestStart <= current.startDate) continue;
-      const ownDuration = Math.max(0, daysBetweenDates(original.startDate, original.endDate));
-      current.startDate = earliestStart;
-      current.endDate = addCalendarDays(earliestStart, ownDuration);
-      affected.add(original.code);
-      changedInPass = true;
-    }
-    if (!changedInPass) break;
-  }
-
-  const changes = [...affected]
-    .map(code => {
-      const before = beforeByCode.get(code);
-      const after = simulated.get(code);
-      if (!before || !after) return null;
-      if (before.startDate === after.startDate && before.endDate === after.endDate) return null;
-      return {
-        id: before.id,
-        code: before.code,
-        title: before.title,
-        oldStartDate: before.startDate,
-        oldEndDate: before.endDate,
-        newStartDate: after.startDate,
-        newEndDate: after.endDate,
-        delayDays: Math.max(0, daysBetweenDates(before.endDate, after.endDate))
-      };
-    })
-    .filter(Boolean);
-
-  return {
-    projectId: project.id,
-    taskId: selected.id,
-    selectedTitle: `${selected.code} ${selected.title}`,
-    requestedDays: days,
-    duration,
-    changes,
-    oldDelivery: projectDeliveryDate(tasks),
-    newDelivery: projectDeliveryDate([...simulated.values()])
-  };
-}
-
-let pendingDelaySimulation = null;
-
-function renderDelayResult(simulation) {
-  pendingDelaySimulation = simulation;
-  const deliveryChanged = simulation.oldDelivery !== simulation.newDelivery;
-  const deliveryDelta = deliveryChanged
-    ? Math.max(0, daysBetweenDates(simulation.oldDelivery, simulation.newDelivery))
-    : 0;
-  const rows = simulation.changes.map(change => `
-    <tr>
-      <td class="nowrap">${escapeHTML(change.code)}</td>
-      <td>${escapeHTML(change.title)}</td>
-      <td class="nowrap">${escapeHTML(change.oldStartDate)} → ${escapeHTML(change.newStartDate)}</td>
-      <td class="nowrap">${escapeHTML(change.oldEndDate)} → ${escapeHTML(change.newEndDate)}</td>
-      <td>${change.delayDays ? `顺延 ${change.delayDays} 天` : '仅前移开始日期'}</td>
-    </tr>
-  `).join('');
-  delayResult.innerHTML = `
-    <div class="impact-summary">
-      <span>预演：<strong>${escapeHTML(simulation.selectedTitle)}</strong> 延期 ${simulation.requestedDays} 天</span>
-      <span class="status-chip ${deliveryChanged ? 'warn' : 'ok'}">
-        交付日期：${escapeHTML(simulation.oldDelivery)} → ${escapeHTML(simulation.newDelivery)}
-      </span>
-      <span class="status-chip ${deliveryChanged ? 'danger' : 'ok'}">
-        ${deliveryChanged ? `最终交付推迟 ${deliveryDelta} 天` : '最终交付日期不受影响'}
-      </span>
-    </div>
-    <div class="table-wrap">
-      <table class="compact-table">
-        <thead><tr><th>编号</th><th>任务</th><th>开始日期</th><th>结束日期</th><th>影响</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="5" class="muted">没有后续任务需要顺延。</td></tr>'}</tbody>
-      </table>
-    </div>
-    <div class="actions">
-      <button id="applyDelayButton" type="button">确认应用新排期</button>
-      <button id="cancelDelayButton" class="secondary" type="button">取消预演</button>
-    </div>
-  `;
-}
-
-function applyPendingDelay() {
-  if (!pendingDelaySimulation) return;
-  const project = data.projects.find(item => item.id === pendingDelaySimulation.projectId);
-  if (!project || project.id !== data.currentProjectId) {
-    showMessage('当前项目已经变化，请重新预演。', 'error');
-    return;
-  }
-  for (const change of pendingDelaySimulation.changes) {
-    const task = data.tasks.find(item => item.id === change.id);
-    if (!task) continue;
-    const postponeDays = Math.max(0, daysBetweenDates(task.endDate, change.newEndDate));
-    task.startDate = change.newStartDate;
-    task.endDate = change.newEndDate;
-    if (postponeDays > 0) task.delayCount = Math.max(0, Number(task.delayCount) || 0) + postponeDays;
-  }
-  project.delayEventCount = Math.max(0, Number(project.delayEventCount) || 0) + 1;
-  pendingDelaySimulation = null;
-  delayResult.innerHTML = '';
-  saveState();
-  renderAll();
-  showMessage('新排期已应用，项目复盘数据已同步更新。');
-}
-
 function renderBlockerSummary() {
   const project = getCurrentProject();
   if (!project) {
@@ -2710,63 +2540,6 @@ function renderBlockerSummary() {
       ${reasons.length > 1 ? `<span class="muted">（另有 ${reasons.length - 1} 条原因）</span>` : ''}</p>
     `).join('')
     : '<p class="muted">当前没有已识别的进度卡点。可在 WBS 中登记卡点，或为任务设置前置依赖。</p>';
-}
-
-function renderReplay() {
-  const project = getCurrentProject();
-  if (!project) {
-    replaySummary.innerHTML = '<div class="empty">请先选择项目。</div>';
-    replayTable.innerHTML = '';
-    lockBaselineButton.disabled = true;
-    return;
-  }
-  lockBaselineButton.disabled = false;
-  lockBaselineButton.textContent = project.baseline ? '重新锁定当前计划为基线' : '锁定当前计划为基线';
-  if (!project.baseline) {
-    replaySummary.innerHTML = `
-      <div class="metric"><span>基准状态</span><strong>未锁定</strong></div>
-      <div class="metric"><span>当前任务</span><strong>${currentTasks().filter(task => task.level === 2).length}</strong></div>
-    `;
-    replayTable.innerHTML = '<div class="empty">先在计划确定后锁定基线，后续复盘才能对照初始排期。</div>';
-    return;
-  }
-
-  const baselineMap = new Map(project.baseline.tasks.map(task => [task.id, task]));
-  const tasks = currentTasks().filter(task => task.level === 2).sort(codeSort);
-  const rows = tasks.map(task => {
-    const baseline = baselineMap.get(task.id);
-    const delay = baseline ? Math.max(0, daysBetweenDates(baseline.endDate, task.endDate)) : 0;
-    return {task, baseline, delay};
-  });
-  const delayed = rows.filter(row => row.delay > 0).sort((a, b) => b.delay - a.delay);
-  const added = rows.filter(row => !row.baseline);
-  const completed = tasks.filter(task => task.status === 'done').length;
-  const adjustmentCount = Math.max(
-    Number(project.delayEventCount) || 0,
-    tasks.reduce((sum, task) => sum + (Number(task.delayCount) || 0), 0)
-  );
-  replaySummary.innerHTML = `
-    <div class="metric"><span>最长延期</span><strong>${delayed[0]?.delay || 0} 天</strong></div>
-    <div class="metric"><span>中途新增任务</span><strong>${added.length} 项</strong></div>
-    <div class="metric"><span>排期调整次数</span><strong>${adjustmentCount}</strong></div>
-    <div class="metric"><span>当前完成</span><strong>${completed} / ${tasks.length}</strong></div>
-  `;
-  replayTable.innerHTML = `
-    <table class="compact-table">
-      <thead><tr><th>任务</th><th>基准结束</th><th>当前结束</th><th>变化</th><th>状态</th></tr></thead>
-      <tbody>
-        ${rows.map(({task, baseline, delay}) => `
-          <tr>
-            <td><strong>${escapeHTML(task.code)}</strong> ${escapeHTML(task.title)}</td>
-            <td class="nowrap">${escapeHTML(baseline?.endDate || '中途新增')}</td>
-            <td class="nowrap">${escapeHTML(task.endDate || '-')}</td>
-            <td>${!baseline ? '<span class="status-chip warn">新增</span>' : delay ? `<span class="status-chip danger">+${delay} 天</span>` : '<span class="status-chip ok">无延期</span>'}</td>
-            <td>${TASK_STATUS_LABELS[safeStatus(task.status)]}</td>
-          </tr>
-        `).join('') || '<tr><td colspan="5" class="muted">暂无工作包。</td></tr>'}
-      </tbody>
-    </table>
-  `;
 }
 
 function findCollisions() {
@@ -2832,6 +2605,18 @@ function acceptanceButton(task) {
   return `<button class="small secondary" type="button" data-task-action="acceptance" data-id="${escapeHTML(task.id)}">${label}</button>`;
 }
 
+function validExternalReview(review) {
+  return review && typeof review === 'object' &&
+    ['organization', 'conclusion', 'evidence', 'reviewer', 'reviewedAt'].every(field =>
+      typeof review[field] === 'string' && review[field].trim()) &&
+    ['accepted', 'returned'].includes(review.verdict);
+}
+
+function formatExternalReview(review) {
+  const verdict = review.verdict === 'accepted' ? '通过' : '退回';
+  return `${verdict} · ${review.organization} · ${review.reviewer} · ${review.reviewedAt.slice(0, 10)}\n结论：${review.conclusion}\n凭证：${review.evidence}`;
+}
+
 function renderAcceptance() {
   const tasks = currentTasks().filter(task => task.requiresAcceptance).sort(codeSort);
   const accepted = tasks.filter(task => task.acceptanceStatus === 'accepted').length;
@@ -2844,6 +2629,8 @@ function renderAcceptance() {
           <h4>${escapeHTML(task.code)} ${escapeHTML(task.title)}</h4>
           <p>交付物：${escapeHTML(task.deliverable || '未填写')}</p>
           ${task.acceptanceReturnReason ? `<p>上次退回：${escapeHTML(task.acceptanceReturnReason)}</p>` : ''}
+          ${task.officialReview ? `<p class="external-review-record">${escapeHTML(formatExternalReview(task.officialReview))}</p>` :
+            thirdPartyAcceptance && task.acceptanceStatus === 'accepted' ? '<p>历史验收 · 未登记第三方凭证</p>' : ''}
         </div>
         <p>验收条件：${escapeHTML(task.acceptanceCriteria || '未设置')}${task.acceptanceGap ? `；缺失：${escapeHTML(task.acceptanceGap)}` : ''}</p>
         <div>
@@ -2855,10 +2642,8 @@ function renderAcceptance() {
     : '<div class="empty">当前项目没有标记需要验收的工作包。</div>';
 }
 
-function renderInnovation() {
-  populateDelayTasks();
+function renderCoordination() {
   renderBlockerSummary();
-  renderReplay();
   renderCollisions();
   renderAcceptance();
 }
@@ -2877,7 +2662,7 @@ function renderAll() {
   syncWbsFormMode();
   syncRiskForm();
   updateRiskPreview();
-  renderInnovation();
+  renderCoordination();
 }
 
 function selectCurrentProject(id, announce = true) {
@@ -2887,8 +2672,6 @@ function selectCurrentProject(id, announce = true) {
   todoOwner.value = '';
   cancelTaskEditing();
   cancelRiskEditing();
-  pendingDelaySimulation = null;
-  delayResult.innerHTML = '';
   saveState({sync: false});
   renderAll();
   if (announce) {
@@ -3184,15 +2967,6 @@ boardArea.addEventListener('change', async event => {
 });
 
 boardArea.addEventListener('click', event => {
-  const more = event.target.closest('[data-expand-board]');
-  if (more) {
-    const status = more.dataset.expandBoard;
-    if (expandedBoardColumns.has(status)) expandedBoardColumns.delete(status);
-    else expandedBoardColumns.add(status);
-    renderBoard();
-    boardArea.querySelector(`[data-expand-board="${status}"]`)?.focus();
-    return;
-  }
   const button = event.target.closest('button[data-board-action="why"]');
   if (button) openTaskBlockerExplanation(button.dataset.id);
   const acceptance = event.target.closest('[data-task-action="acceptance"]');
@@ -3384,6 +3158,12 @@ function openAcceptanceSettings(taskId) {
   acceptanceGap.value = task.acceptanceGap;
   acceptanceCriteria.readOnly = acceptanceGap.readOnly = locked;
   acceptanceReturnReason.value = '';
+  reviewOrganization.value = reviewConclusion.value = reviewEvidence.value = '';
+  document.querySelector('#externalReviewFields').hidden = !review || !thirdPartyAcceptance;
+  const record = document.querySelector('#externalReviewRecord');
+  record.hidden = !task.officialReview && (!thirdPartyAcceptance || task.acceptanceStatus !== 'accepted');
+  record.textContent = task.officialReview ? formatExternalReview(task.officialReview) :
+    '历史验收记录，未登记第三方验收凭证。';
   acceptanceError.textContent = '';
   document.querySelector('#returnReasonField').hidden = !review;
   const actions = {save: !locked, submit: maySubmitAcceptance(task) && canSubmitAcceptance(task),
@@ -3440,37 +3220,6 @@ sidebar.querySelectorAll('a[href^="#"]').forEach(link => {
   });
 });
 
-delayForm.addEventListener('submit', event => {
-  event.preventDefault();
-  try {
-    const days = Math.max(1, Math.min(90, Number(delayDays.value) || 1));
-    const simulation = calculateDelaySimulation(delayTaskSelect.value, days);
-    renderDelayResult(simulation);
-  } catch (error) {
-    showMessage(error.message, 'error');
-  }
-});
-
-delayResult.addEventListener('click', event => {
-  if (event.target.closest('#applyDelayButton')) applyPendingDelay();
-  if (event.target.closest('#cancelDelayButton')) {
-    pendingDelaySimulation = null;
-    delayResult.innerHTML = '';
-  }
-});
-
-lockBaselineButton.addEventListener('click', () => {
-  const project = getCurrentProject();
-  if (!project) return;
-  project.baseline = {
-    lockedAt: new Date().toISOString(),
-    tasks: projectTaskSnapshot(project.id)
-  };
-  saveState();
-  renderAll();
-  showMessage(`已锁定“${project.name}”当前计划，作为后续复盘基准。`);
-});
-
 collisionList.addEventListener('click', event => {
   const button = event.target.closest('button[data-jump-task]');
   if (button) jumpToTask(button.dataset.jumpProject, button.dataset.jumpTask);
@@ -3519,7 +3268,18 @@ acceptanceForm.addEventListener('submit', async event => {
       acceptanceError.textContent = '请填写退回原因。';
       return;
     }
-    if (await sendTaskAction(task, action, {reason})) {
+    const fields = {reason};
+    if ((action === 'approve' || action === 'return') && !canReview(task)) return;
+    if (thirdPartyAcceptance && (action === 'approve' || action === 'return')) {
+      fields.organization = reviewOrganization.value.trim();
+      fields.conclusion = reviewConclusion.value.trim();
+      fields.evidence = reviewEvidence.value.trim();
+      if (!fields.organization || !fields.conclusion || !fields.evidence) {
+        acceptanceError.textContent = '请填写验收机构、结论和凭证。';
+        return;
+      }
+    }
+    if (await sendTaskAction(task, action, fields)) {
       closeDialog(acceptanceDialog);
       showMessage('验收操作已保存。');
     }
@@ -3768,8 +3528,6 @@ function prepareCloudLogin(switching) {
 
 function clearAccountWorkspace() {
   taskQuery.value = taskFilter.value = riskQuery.value = riskFilter.value = todoOwner.value = '';
-  pendingDelaySimulation = null;
-  delayResult.innerHTML = '';
   projectForm.reset();
   memberForm.reset();
   memberList.replaceChildren();
