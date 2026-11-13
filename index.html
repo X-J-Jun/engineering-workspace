@@ -1134,6 +1134,23 @@
   .acceptance-materials p,.acceptance-materials a { white-space:pre-wrap; overflow-wrap:anywhere; }
   .acceptance-materials textarea { min-height:72px; }
   #acceptanceDialog [hidden] { display:none!important; }
+  main > [hidden], .delivery-layout [hidden], .overview-rates[hidden] { display:none!important; }
+  .delivery-layout { display:grid; grid-template-columns:minmax(0, 1.2fr) minmax(0, 1fr); gap:20px; }
+  #acceptanceDialog { width:min(900px,calc(100% - 26px)); }
+  .delivery-side { padding-left:16px; border-left:1px solid var(--line); min-width:0; }
+  #deliveryHistoryList details { border-bottom:1px solid var(--line); padding:7px 0; }
+  #deliveryHistoryList summary { cursor:pointer; overflow-wrap:anywhere; }
+  .overview-rates { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin:12px 0; }
+  .overview-rates label { display:grid; grid-template-columns:1fr auto; gap:4px; background:#fff; border:1px solid var(--line); padding:10px; border-radius:8px; }
+  .overview-rates progress { grid-column:1/-1; width:100%; accent-color:var(--green); }
+  main > [hidden] { display:none !important; }
+  .plan-views { display:flex; gap:8px; scroll-margin-top:100px; }
+  .plan-views a { border:1px solid var(--line); padding:7px 14px; border-radius:6px; background:#fff; color:var(--navy); text-decoration:none; }
+  .plan-views [aria-current="page"] { background:var(--blue-soft); font-weight:700; }
+  @media(max-width:640px) {
+    .delivery-layout { grid-template-columns:1fr; gap:8px; }
+    .delivery-side { padding-left:0; border-left:0; }
+  }
 </style>
 </head>
 <body>
@@ -1149,7 +1166,7 @@
     <div class="workspace-nav-group">
       <p>概览</p>
       <a href="#overviewHeading">项目总览</a>
-      <a href="#todoHeading">项目待办</a>
+      <a href="#todoHeading">我的工作</a>
     </div>
     <div class="workspace-nav-group">
       <p>项目执行</p>
@@ -1157,6 +1174,7 @@
       <a href="#wbsHeading">任务与进度</a>
       <a href="#boardHeading">进度甘特图</a>
       <a href="#riskHeading">风险与问题</a>
+      <a href="#innovationHeading">项目协同</a>
       <a id="acceptanceNav" href="#acceptancePanel">里程碑验收</a>
     </div>
     <div class="workspace-nav-group">
@@ -1226,6 +1244,11 @@
 <main>
   <section class="workspace-overview" aria-labelledby="overviewHeading">
     <h2 id="overviewHeading">项目总览</h2>
+    <p id="overviewProjectMeta" class="muted"></p>
+    <div id="overviewRates" class="overview-rates" hidden>
+      <label>工作包完成率 <span id="workRateLabel"></span><progress id="workRate" max="100"></progress></label>
+      <label>交付验收通过率 <span id="deliveryRateLabel"></span><progress id="deliveryRate" max="100"></progress></label>
+    </div>
     <p id="overviewProgress" aria-live="polite"></p>
     <div id="demoProjectControls" hidden>
       <button id="loadDemoProject" class="secondary" type="button">加载演示项目</button>
@@ -1239,15 +1262,17 @@
     </div>
   </section>
   <section aria-labelledby="todoHeading">
-    <h2 id="todoHeading">项目待办</h2>
+    <h2 id="todoHeading">我的工作</h2>
     <div class="workspace-filters">
+      <label for="todoScope">范围</label>
+      <select id="todoScope"><option value="mine">我的事项</option><option value="project">当前项目</option></select>
       <label for="todoOwner">责任人</label>
       <select id="todoOwner"><option value="">全部责任人</option></select>
     </div>
     <div class="table-wrap">
       <table>
-        <caption class="visually-hidden">当前项目待办清单</caption>
-        <thead><tr><th scope="col">事项</th><th scope="col">责任人</th><th scope="col">期限</th><th scope="col">状态</th><th scope="col">操作</th></tr></thead>
+        <caption class="visually-hidden">工作待办清单</caption>
+        <thead><tr><th scope="col">事项</th><th scope="col">项目</th><th scope="col">责任人</th><th scope="col">期限</th><th scope="col">状态</th><th scope="col">操作</th></tr></thead>
         <tbody id="todoRows"></tbody>
       </table>
     </div>
@@ -1287,8 +1312,12 @@
     <div id="projectList" class="project-list"></div>
   </section>
 
+  <nav id="planViews" class="plan-views" aria-label="计划视图">
+    <a href="#wbsHeading">任务列表</a>
+    <a href="#boardHeading">甘特图</a>
+  </nav>
   <section aria-labelledby="wbsHeading">
-    <h2 id="wbsHeading">任务与进度 · WBS</h2>
+    <h2 id="wbsHeading">计划与任务</h2>
     <p class="hint">先建立一级任务，再添加二级工作包。编号示例：一级“1.0”，其下属二级“1.1”。</p>
     <div class="workspace-filters">
       <label for="taskQuery">查找任务</label>
@@ -1517,17 +1546,18 @@
         <div id="collisionList" class="collision-list"></div>
       </article>
 
-      <article id="acceptancePanel" class="innovation-card">
+    </div>
+  </section>
+
+  <section id="acceptancePanel" aria-labelledby="acceptancePanelTitle">
         <div class="panel-heading">
           <div>
-            <h3 id="acceptancePanelTitle">里程碑验收</h3>
+            <h2 id="acceptancePanelTitle">交付与验收</h2>
             <p id="acceptancePanelDescription">查看交付物、验收条件和处理结果。</p>
           </div>
           <span id="acceptanceSummary" class="status-chip">0 / 0 已验收</span>
         </div>
         <div id="acceptanceList" class="acceptance-list"></div>
-      </article>
-    </div>
   </section>
 
   <section aria-labelledby="backupHeading">
@@ -1595,6 +1625,8 @@
         <li>审批与第三方验收</li>
       </ol>
       <p id="acceptanceReturnNote" hidden></p>
+      <div class="delivery-layout">
+      <div class="delivery-main">
       <div class="field">
         <label for="acceptanceCriteria">验收条件</label>
         <textarea id="acceptanceCriteria" maxlength="4000" placeholder="例如：提交课程报告、演示视频和运行截图"></textarea>
@@ -1619,6 +1651,12 @@
         <ul id="acceptanceSubmittedLinks"></ul>
         <p id="acceptanceSubmittedBy" class="muted"></p>
       </div>
+      </div>
+      <aside class="delivery-side" aria-label="交付版本与审批">
+      <div id="deliveryHistory" hidden>
+        <h4>历史版本</h4>
+        <div id="deliveryHistoryList"></div>
+      </div>
       <div id="externalReviewFields" hidden>
         <div class="field"><label for="reviewOrganization">验收机构</label><input id="reviewOrganization" maxlength="160"></div>
         <div class="field"><label for="reviewConclusion">验收结论</label><textarea id="reviewConclusion" maxlength="2000"></textarea></div>
@@ -1630,9 +1668,12 @@
         <label id="acceptanceReasonLabel" for="acceptanceReturnReason">退回原因（退回时必填）</label>
         <textarea id="acceptanceReturnReason" maxlength="2000"></textarea>
       </div>
+      </aside>
+      </div>
       <div id="acceptanceError" role="alert"></div>
       <div class="dialog-actions">
         <button type="submit" name="action" value="save">保存验收条件</button>
+        <button type="button" id="saveDeliveryDraft" class="secondary" hidden>保存材料草稿</button>
         <button type="submit" name="action" value="submit">提交验收</button>
         <button type="submit" name="action" value="internal-approve" hidden disabled>内部通过</button>
         <button type="submit" class="secondary" name="action" value="internal-return" hidden disabled>内部退回</button>
@@ -1793,6 +1834,7 @@ const reviewConclusion = document.querySelector('#reviewConclusion');
 const reviewEvidence = document.querySelector('#reviewEvidence');
 const acceptanceMaterialSummary = document.querySelector('#acceptanceMaterialSummary');
 const acceptanceMaterialLinks = document.querySelector('#acceptanceMaterialLinks');
+const saveDeliveryDraft = document.querySelector('#saveDeliveryDraft');
 const wbsRequiresAcceptance = document.querySelector('#wbsRequiresAcceptance');
 
 let messageTimer;
@@ -1816,9 +1858,12 @@ function canUpdateTask(task) {
 function canReview(task) {
   return pendingAcceptance(task) && (!sharedMode || (!thirdPartyAcceptance && sharedRole === 'owner') ||
     (sharedRole === 'reviewer' && !assignedTo(task, sharedActor) &&
-      task.submittedBy.toLowerCase() !== sharedActor.toLowerCase()));
+      task.submittedBy.toLowerCase() !== sharedActor.toLowerCase() &&
+      (!task.acceptanceSubmission?.version || task.internalReview?.verdict === 'accepted')));
 }
 function canReviewInternally(task) {
+  if (task.acceptanceSubmission?.version && (task.acceptanceStatus !== 'pending' ||
+      task.internalReview?.verdict === 'accepted')) return false;
   return thirdPartyAcceptance && sharedRole === 'owner' && task.requiresAcceptance &&
     (materialsSubmission ? ['pending', 'accepted'] : ['pending', 'accepted', 'returned']).includes(task.acceptanceStatus);
 }
@@ -1952,6 +1997,7 @@ function normalizeState(raw) {
         ...(validExternalReview(task.officialReview) ? {officialReview: task.officialReview} : {}),
         ...(validInternalReview(task.internalReview) ? {internalReview: task.internalReview} : {}),
         ...(validAcceptanceSubmission(task.acceptanceSubmission) ? {acceptanceSubmission: task.acceptanceSubmission} : {}),
+        ...(Array.isArray(task.deliveryHistory) ? {deliveryHistory: task.deliveryHistory} : {}),
         delayCount: Math.max(0, Number(task.delayCount) || 0)
       };
     });
@@ -2037,7 +2083,7 @@ function acceptSharedState({state, actor, role, acceptanceMode, acceptanceFlow})
   materialsSubmission = acceptanceFlow === 'materials';
   thirdPartyAcceptance = acceptanceMode === 'third_party';
   ROLE_NAMES.reviewer = thirdPartyAcceptance ? '第三方验收员' : '审批者';
-  const label = thirdPartyAcceptance ? '第三方验收' : '里程碑验收';
+  const label = materialsSubmission ? '交付与验收' : thirdPartyAcceptance ? '第三方验收' : '里程碑验收';
   document.querySelector('#acceptanceNav').textContent = label;
   document.querySelector('#acceptancePanelTitle').textContent = label;
   document.querySelector('#acceptanceDialogTitle').textContent = thirdPartyAcceptance ? label : '工作包验收';
@@ -2092,6 +2138,7 @@ async function sendTaskAction(task, action, fields = {}) {
         materials_required: '请填写材料说明。',
         invalid_material_links: '请检查附件链接是否为有效的 HTTPS 地址。',
         invalid_acceptance_criteria: '验收条件或缺失证据说明过长。',
+        internal_approval_required: '该版本须先由所有者内部通过。',
         review_details_required: '请完整填写验收机构、结论和凭证。'
       };
       showMessage(errors[result.error] || '请检查表单内容后重试。', 'error');
@@ -2772,19 +2819,39 @@ function safeMaterialLink(value) {
   }
 }
 
-function renderAcceptanceMaterials(task, editable) {
-  const submission = task.acceptanceSubmission;
-  document.querySelector('#acceptanceMaterialFields').hidden = !editable;
-  acceptanceMaterialSummary.value = submission?.summary || '';
-  acceptanceMaterialLinks.value = submission?.links.join('\n') || '';
-  const record = document.querySelector('#acceptanceSubmittedMaterials');
-  record.hidden = !submission || editable;
-  document.querySelector('#acceptanceSubmittedSummary').textContent = submission?.summary || '';
-  document.querySelector('#acceptanceSubmittedBy').textContent = submission ?
-    `${submission.submittedBy} · ${submission.submittedAt.slice(0, 10)}` : '';
-  const links = document.querySelector('#acceptanceSubmittedLinks');
-  links.replaceChildren();
-  for (const value of submission?.links || []) {
+function deliveryStatus(task) {
+  if (task.acceptanceStatus === 'pending' && task.acceptanceSubmission?.version) {
+    return task.internalReview?.verdict === 'accepted' ? '待第三方验收' : '待内部审批';
+  }
+  return ACCEPTANCE_LABELS[task.acceptanceStatus];
+}
+
+function materialDraftKey(task) {
+  return JSON.stringify([STORAGE_KEY, 'delivery-draft', sharedActor, task.projectId, task.id,
+    task.acceptanceSubmission?.submittedAt || '']);
+}
+
+function materialDraft(task) {
+  try { return JSON.parse(sessionStorage.getItem(materialDraftKey(task))) || {}; }
+  catch { return {}; }
+}
+
+saveDeliveryDraft.addEventListener('click', () => {
+  const task = currentTasks().find(item => item.id === acceptanceTaskId.value);
+  if (!task || !canSubmitAcceptance(task) || !maySubmitAcceptance(task)) return;
+  try {
+    sessionStorage.setItem(materialDraftKey(task), JSON.stringify({
+      summary:acceptanceMaterialSummary.value, links:acceptanceMaterialLinks.value
+    }));
+    acceptanceError.textContent = '';
+    showMessage('草稿已保存到当前标签页。');
+  } catch {
+    acceptanceError.textContent = '浏览器无法保存草稿。';
+  }
+});
+
+function appendMaterialLinks(list, values) {
+  for (const value of values) {
     if (!safeMaterialLink(value)) continue;
     const item = document.createElement('li');
     const link = document.createElement('a');
@@ -2793,8 +2860,53 @@ function renderAcceptanceMaterials(task, editable) {
     link.rel = 'noopener noreferrer';
     link.textContent = value;
     item.append(link);
-    links.append(item);
+    list.append(item);
   }
+}
+
+function renderDeliveryHistory(task) {
+  const list = document.querySelector('#deliveryHistoryList');
+  list.replaceChildren();
+  const history = (task.deliveryHistory || []).filter(entry => validAcceptanceSubmission(entry?.submission));
+  document.querySelector('#deliveryHistory').hidden = !history.length;
+  history.slice().reverse().forEach((entry, index) => {
+    const details = document.createElement('details');
+    const title = document.createElement('summary');
+    const submission = entry.submission;
+    const version = submission.version || history.length - index;
+    title.textContent = `第 ${version} 版 · ${submission.submittedAt.slice(0, 10)} · ${submission.submittedBy}`;
+    details.append(title);
+    const lines = [submission.summary];
+    if (typeof submission.criteria === 'string' && submission.criteria) lines.push('验收条件：' + submission.criteria);
+    if (validInternalReview(entry.internalReview)) lines.push(formatInternalReview(entry.internalReview));
+    if (validExternalReview(entry.officialReview)) lines.push(formatExternalReview(entry.officialReview));
+    if (typeof entry.returnReason === 'string') lines.push('退回原因：' + entry.returnReason);
+    const record = document.createElement('p');
+    record.className = 'external-review-record';
+    record.textContent = lines.join('\n');
+    const links = document.createElement('ul');
+    appendMaterialLinks(links, submission.links);
+    details.append(record, links);
+    list.append(details);
+  });
+}
+
+function renderAcceptanceMaterials(task, editable) {
+  const submission = task.acceptanceSubmission;
+  document.querySelector('#acceptanceMaterialFields').hidden = !editable;
+  const draft = editable ? materialDraft(task) : {};
+  acceptanceMaterialSummary.value = draft.summary ?? submission?.summary ?? '';
+  acceptanceMaterialLinks.value = draft.links ?? submission?.links.join('\n') ?? '';
+  saveDeliveryDraft.hidden = !editable;
+  renderDeliveryHistory(task);
+  const record = document.querySelector('#acceptanceSubmittedMaterials');
+  record.hidden = !submission || editable;
+  document.querySelector('#acceptanceSubmittedSummary').textContent = submission?.summary || '';
+  document.querySelector('#acceptanceSubmittedBy').textContent = submission ?
+    `${submission.submittedBy} · ${submission.submittedAt.slice(0, 10)}` : '';
+  const links = document.querySelector('#acceptanceSubmittedLinks');
+  links.replaceChildren();
+  appendMaterialLinks(links, submission?.links || []);
 }
 
 function validExternalReview(review) {
@@ -2832,14 +2944,14 @@ function renderAcceptance() {
           <h4>${escapeHTML(task.code)} ${escapeHTML(task.title)}</h4>
           <p>交付物：${escapeHTML(task.deliverable || '未填写')}</p>
           ${task.acceptanceReturnReason ? `<p>上次退回：${escapeHTML(task.acceptanceReturnReason)}</p>` : ''}
-          ${task.acceptanceSubmission ? `<p>已提交材料 · ${task.acceptanceSubmission.links.length} 个附件链接</p>` : ''}
+          ${task.acceptanceSubmission ? `<p>第 ${escapeHTML(task.acceptanceSubmission.version || 1)} 版 · ${task.acceptanceSubmission.links.length} 个附件链接</p>` : ''}
           ${task.internalReview ? `<p class="external-review-record">${escapeHTML(formatInternalReview(task.internalReview))}</p>` : ''}
           ${task.officialReview ? `<p class="external-review-record">${escapeHTML(formatExternalReview(task.officialReview))}</p>` :
             thirdPartyAcceptance && task.acceptanceStatus === 'accepted' ? '<p>历史验收 · 未登记第三方凭证</p>' : ''}
         </div>
-        <p>验收条件：${escapeHTML(task.acceptanceCriteria || '未设置')}${task.acceptanceGap ? `；缺失：${escapeHTML(task.acceptanceGap)}` : ''}</p>
+        <p>验收条件：${escapeHTML((acceptanceLocked(task) ? task.acceptanceSubmission?.criteria ?? task.acceptanceCriteria : task.acceptanceCriteria) || '未设置')}${task.acceptanceGap ? `；缺失：${escapeHTML(task.acceptanceGap)}` : ''}</p>
         <div>
-          <span class="status-chip ${task.acceptanceStatus === 'accepted' ? 'ok' : 'warn'}">${ACCEPTANCE_LABELS[task.acceptanceStatus]}</span>
+          <span class="status-chip ${task.acceptanceStatus === 'accepted' ? 'ok' : 'warn'}">${deliveryStatus(task)}</span>
           ${acceptanceButton(task)}
         </div>
       </div>
@@ -3369,11 +3481,11 @@ function openAcceptanceSettings(taskId) {
   acceptanceTaskId.value = task.id;
   acceptanceTaskName.textContent = `${task.code} ${task.title}`;
   document.querySelector('#acceptanceDetails').textContent =
-    `${ACCEPTANCE_LABELS[task.acceptanceStatus]} · 交付物：${task.deliverable || '未填写'}`;
+    `${deliveryStatus(task)}${task.acceptanceSubmission ? ` · 第 ${task.acceptanceSubmission.version || 1} 版` : ''} · 交付物：${task.deliverable || '未填写'}`;
   const note = document.querySelector('#acceptanceReturnNote');
   note.hidden = !task.acceptanceReturnReason;
   note.textContent = task.acceptanceReturnReason ? `上次退回：${task.acceptanceReturnReason}` : '';
-  acceptanceCriteria.value = task.acceptanceCriteria;
+  acceptanceCriteria.value = acceptanceLocked(task) ? task.acceptanceSubmission?.criteria ?? task.acceptanceCriteria : task.acceptanceCriteria;
   acceptanceGap.value = task.acceptanceGap;
   acceptanceCriteria.readOnly = acceptanceGap.readOnly = locked;
   const steps = document.querySelector('#acceptanceFlowSteps');
@@ -3427,6 +3539,10 @@ function jumpToTask(projectId, taskId) {
   closeDialog(blockerSettingsDialog);
   if (data.currentProjectId !== projectId) {
     selectCurrentProject(projectId, false);
+  }
+  if (location.hash !== '#wbsHeading') {
+    history.pushState(null, '', '#wbsHeading');
+    markActiveModule();
   }
   taskQuery.value = taskFilter.value = '';
   if (packagesCollapsed) togglePackages.click();
@@ -3536,6 +3652,9 @@ acceptanceForm.addEventListener('submit', async event => {
       }
     }
     if (await sendTaskAction(task, action, fields)) {
+      if (action === 'submit') {
+        try { sessionStorage.removeItem(materialDraftKey(task)); } catch {}
+      }
       closeDialog(acceptanceDialog);
       showMessage(action === 'submit' ? '验收材料已提交，等待审批。' : '验收操作已保存。');
     }
@@ -4072,59 +4191,84 @@ const togglePackages = document.querySelector('#togglePackages');
 const todoOwner = document.querySelector('#todoOwner');
 const todoRows = document.querySelector('#todoRows');
 
+const todoScope = document.querySelector('#todoScope');
+
 function renderTodos() {
   const today = formatDateValue(new Date());
-  const tasks = currentTasks();
+  const soon = addCalendarDays(today, 7);
+  const mine = sharedMode && Boolean(sharedActor) && todoScope.value === 'mine';
+  const projects = mine ? data.projects : data.projects.filter(project => project.id === data.currentProjectId);
   const entries = [];
-  for (const task of tasks.filter(item => item.level === 2)) {
-    const reasons = [];
-    if (isOverdue(task)) reasons.push('逾期');
-    if (isBlocked(task, tasks)) reasons.push('阻塞');
-    if (pendingAcceptance(task)) reasons.push('待验收');
-    if (task.requiresAcceptance && task.acceptanceStatus === 'returned') reasons.push('已退回');
-    if (reasons.length) entries.push({
-      id: task.id, title: `${task.code} ${task.title}`, owner: task.owner, due: task.endDate,
-      status: [TASK_STATUS_LABELS[task.status], ...reasons].join(' · '),
-      action: pendingAcceptance(task) ? 'review' : 'task'
-    });
-  }
-  for (const risk of currentRisks()) {
-    if (risk.status === 'closed' || !risk.dueDate || risk.dueDate > today) continue;
-    entries.push({id: risk.id, title: risk.name, owner: risk.owner, due: risk.dueDate,
-      status: `${RISK_STATUS_LABELS[risk.status]} · 风险到期`, action: 'risk'});
+  todoScope.disabled = !sharedMode || !sharedActor;
+  todoScope.querySelector('[value=mine]').hidden = !sharedMode;
+  if (!sharedMode) todoScope.value = 'project';
+  todoOwner.disabled = mine;
+  for (const project of projects) {
+    const tasks = data.tasks.filter(task => task.projectId === project.id);
+    for (const task of tasks.filter(item => item.level === 2)) {
+      const review = canReview(task) || (pendingAcceptance(task) && canReviewInternally(task) &&
+        task.internalReview?.verdict !== 'accepted');
+      const returned = task.requiresAcceptance && task.acceptanceStatus === 'returned';
+      const own = assignedTo(task, sharedActor);
+      if (mine && !own && !review) continue;
+      const reasons = [];
+      if (isOverdue(task)) reasons.push('逾期');
+      else if (task.status !== 'done' && task.endDate && task.endDate <= soon) reasons.push('七天内到期');
+      if (isBlocked(task, tasks)) reasons.push('阻塞');
+      if (review) reasons.push('待我审批');
+      else if (pendingAcceptance(task) && !mine) reasons.push(deliveryStatus(task));
+      if (returned) reasons.push('退回待补交');
+      if (mine && own && task.status !== 'done' && !reasons.length) reasons.push('待办');
+      if (reasons.length) entries.push({
+        id:task.id, project, title:`${task.code} ${task.title}`, owner:task.owner, due:task.endDate,
+        status:[TASK_STATUS_LABELS[task.status], ...reasons].join(' · '),
+        action:review || returned || pendingAcceptance(task) ? 'review' : 'task',
+        priority:review || returned ? 0 : isOverdue(task) ? 1 : 2
+      });
+    }
+    for (const risk of data.risks.filter(item => item.projectId === project.id)) {
+      if (risk.status === 'closed' || !risk.dueDate || risk.dueDate > today ||
+          (mine && !assignedTo(risk, sharedActor))) continue;
+      entries.push({id:risk.id, project, title:risk.name, owner:risk.owner, due:risk.dueDate,
+        status:`${RISK_STATUS_LABELS[risk.status]} · 风险到期`, action:'risk', priority:1});
+    }
   }
   const owner = todoOwner.value;
-  const owners = [...new Set(entries.map(entry => entry.owner || ''))].sort((a, b) => a.localeCompare(b, 'zh-CN'));
+  const owners = [...new Set(entries.map(entry => entry.owner || ''))].sort((a,b) => a.localeCompare(b,'zh-CN'));
   todoOwner.replaceChildren(new Option('全部责任人', ''), ...owners.map(name =>
     new Option(name || '未分配', JSON.stringify(name))));
-  if ([...todoOwner.options].some(option => option.value === owner)) todoOwner.value = owner;
-  const visible = entries.filter(entry => !todoOwner.value || JSON.stringify(entry.owner || '') === todoOwner.value);
-  visible.sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999') || a.title.localeCompare(b.title, 'zh-CN'));
-  todoRows.innerHTML = visible.map(entry => `
-    <tr>
-      <td>${escapeHTML(entry.title)}</td>
-      <td>${escapeHTML(entry.owner || '未分配')}</td>
-      <td>${escapeHTML(entry.due || '未设置')}</td>
-      <td>${escapeHTML(entry.status)}</td>
-      <td><button type="button" class="small secondary" data-todo-action="${entry.action}" data-id="${escapeHTML(entry.id)}">${entry.action === 'review' ? '处理验收' : '查看记录'}</button></td>
-    </tr>`).join('') || '<tr><td colspan="5">当前没有待办事项。</td></tr>';
+  if (!mine && [...todoOwner.options].some(option => option.value === owner)) todoOwner.value = owner;
+  const visible = entries.filter(entry => mine || !todoOwner.value || JSON.stringify(entry.owner || '') === todoOwner.value);
+  visible.sort((a,b) => a.priority - b.priority || (a.due || '9999').localeCompare(b.due || '9999') ||
+    a.title.localeCompare(b.title,'zh-CN'));
+  todoRows.innerHTML = visible.map(entry => `<tr>
+    <td>${escapeHTML(entry.title)}</td><td>${escapeHTML(entry.project.name)}</td>
+    <td>${escapeHTML(entry.owner || '未分配')}</td><td>${escapeHTML(entry.due || '未设置')}</td>
+    <td>${escapeHTML(entry.status)}</td>
+    <td><button type="button" class="small secondary" data-todo-action="${entry.action}"
+      data-project="${escapeHTML(entry.project.id)}" data-id="${escapeHTML(entry.id)}">${entry.action === 'review' ? '打开交付单' : '查看记录'}</button></td>
+  </tr>`).join('') || '<tr><td colspan="6">当前没有待办事项。</td></tr>';
 }
 
 todoOwner.addEventListener('change', renderTodos);
+todoScope.addEventListener('change', renderTodos);
 todoRows.addEventListener('click', event => {
   const button = event.target.closest('[data-todo-action]');
   if (!button) return;
-  const {todoAction, id} = button.dataset;
+  const {todoAction, id, project} = button.dataset;
+  if (project !== data.currentProjectId) selectCurrentProject(project, false);
   if (todoAction === 'review') openAcceptanceSettings(id);
-  else if (todoAction === 'task') jumpToTask(data.currentProjectId, id);
+  else if (todoAction === 'task') jumpToTask(project, id);
   else {
+    history.pushState(null, '', '#riskHeading');
+    markActiveModule();
     riskFilter.value = riskQuery.value = '';
     renderRisks();
     const row = [...riskTableBody.rows].find(item => item.dataset.riskId === id);
     if (!row) return;
     row.tabIndex = -1;
-    row.focus({preventScroll: true});
-    row.scrollIntoView({block: 'center'});
+    row.focus({preventScroll:true});
+    row.scrollIntoView({block:'center'});
   }
 });
 let packagesCollapsed = false;
@@ -4169,6 +4313,16 @@ function renderOverview() {
   const reviewable = packages.filter(task => task.requiresAcceptance);
   const accepted = reviewable.filter(task => task.acceptanceStatus === 'accepted').length;
   renderTodos();
+  const project = getCurrentProject();
+  const deadline = packages.map(task => task.endDate).filter(Boolean).sort().at(-1);
+  document.querySelector('#overviewProjectMeta').textContent = project ?
+    `${project.name} · 负责人 ${project.manager || '未设置'} · 计划交付 ${deadline || '未排期'}` : '';
+  document.querySelector('#overviewRates').hidden = !project;
+  for (const [id, count, total] of [['workRate', complete, packages.length], ['deliveryRate', accepted, reviewable.length]]) {
+    const percent = total ? Math.round(count * 100 / total) : 0;
+    document.querySelector('#' + id).value = percent;
+    document.querySelector('#' + id + 'Label').textContent = total ? percent + '%' : '暂无数据';
+  }
   document.querySelector('#overviewProgress').textContent = getCurrentProject()
     ? `已完成工作包 ${complete}／${packages.length} · 已验收 ${accepted}／${reviewable.length} 项需验收`
     : '请先在项目管理中创建项目。';
@@ -4271,7 +4425,16 @@ document.querySelector('.overview-metrics').addEventListener('click', event => {
   filter.focus({preventScroll: true});
 });
 function markActiveModule() {
-  const hash = location.hash || '#overviewHeading';
+  const sections = [...document.querySelectorAll('main > section[aria-labelledby]')];
+  const sectionHash = section => '#' + (section.id || section.getAttribute('aria-labelledby'));
+  const hash = sections.some(section => sectionHash(section) === location.hash) ? location.hash : '#todoHeading';
+  const timeline = hash === '#boardHeading';
+  document.querySelector('#planViews').hidden = !timeline && hash !== '#wbsHeading';
+  for (const section of sections) section.hidden = sectionHash(section) !== hash;
+  for (const link of document.querySelectorAll('#planViews a')) {
+    if ((link.hash === '#boardHeading') === timeline) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  }
   document.querySelectorAll('.sidebar nav a').forEach(link => {
     if (link.hash === hash) link.setAttribute('aria-current', 'location');
     else link.removeAttribute('aria-current');

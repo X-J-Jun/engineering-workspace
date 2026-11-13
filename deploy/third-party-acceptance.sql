@@ -44,6 +44,22 @@ returns boolean language sql set search_path = '' as $$
         )
       )
     ) or (
+      coalesce(proposed->'deliveryHistory', '[]'::jsonb) is distinct from coalesce(previous->'deliveryHistory', '[]'::jsonb)
+      and not (previous is null and exists (
+        select 1 from workspace_private.revisions r
+        cross join lateral jsonb_array_elements(r.document->'tasks') as saved
+        where saved->'id' = proposed->'id' and saved->'projectId' = proposed->'projectId'
+          and saved->'deliveryHistory' = proposed->'deliveryHistory'
+          and saved->'acceptanceSubmission' is not distinct from proposed->'acceptanceSubmission'
+          and saved->'internalReview' is not distinct from proposed->'internalReview'
+          and saved->'officialReview' is not distinct from proposed->'officialReview'
+      ))
+    ) or (
+      previous->'acceptanceSubmission' ? 'version' and (
+        previous->'acceptanceStatus' is distinct from proposed->'acceptanceStatus'
+        or previous->'requiresAcceptance' is distinct from proposed->'requiresAcceptance'
+      )
+    ) or (
       previous->'acceptanceSubmission' is not null
       and previous->>'acceptanceStatus' = 'pending' and exists (
         select 1 from unnest(array['owner','projectId','status','deliverable','acceptanceStatus',
@@ -74,7 +90,9 @@ begin
   where task->>'level' = '2'
     and ((member_role = 'submitter' and lower(task->>'owner') = email)
       or (member_role = 'reviewer' and (task->>'acceptanceStatus' = 'pending'
-        or task->'officialReview'->>'reviewer' = email)));
+        or task->'officialReview'->>'reviewer' = email
+        or exists (select 1 from jsonb_array_elements(coalesce(task->'deliveryHistory','[]'::jsonb)) as delivery
+          where delivery->'officialReview'->>'reviewer' = email))));
   return jsonb_build_object(
     'version',2, 'risks','[]'::jsonb,
     'projects',(select coalesce(jsonb_agg(jsonb_build_object('id',p->'id','name',p->'name')),'[]')
@@ -109,6 +127,8 @@ declare
   verdict text;
   material_summary text;
   material_links jsonb;
+  delivery_history jsonb;
+  version_number int;
 begin
   -- Hold membership for the duration of a read or write so revocation is ordered with it.
   select m.role, lower(u.email) into member_role,email
@@ -209,13 +229,26 @@ begin
               'acceptanceCriteria', coalesce(payload->>'criteria', task->>'acceptanceCriteria',''),
               'acceptanceGap', coalesce(payload->>'gap', task->>'acceptanceGap',''));
           end if;
-          task := (task - 'internalReview') || jsonb_build_object('status','done','requiresAcceptance',true,
+          delivery_history := coalesce(task->'deliveryHistory','[]'::jsonb);
+          if jsonb_typeof(task->'acceptanceSubmission') = 'object' then
+            delivery_history := delivery_history || jsonb_build_array(jsonb_build_object(
+              'submission',task->'acceptanceSubmission','internalReview',task->'internalReview',
+              'officialReview',task->'officialReview','returnReason',task->'acceptanceReturnReason'));
+          end if;
+          version_number := jsonb_array_length(delivery_history) + 1;
+          task := (task - array['internalReview','officialReview','acceptanceReturnReason']) ||
+            jsonb_build_object('deliveryHistory',delivery_history,'status','done','requiresAcceptance',true,
             'acceptanceStatus','pending','submittedBy',email,'reviewedBy','',
             'acceptanceSubmission',jsonb_build_object('summary',material_summary,'links',material_links,
-              'submittedBy',email,'submittedAt',now()));
+              'submittedBy',email,'submittedAt',now(),'version',version_number,
+              'criteria',coalesce(task->>'acceptanceCriteria','')));
         else return jsonb_build_object('status',403,'error','forbidden');
         end if;
-      elsif member_role = 'owner' and ((action = 'internal-approve' and acceptance in ('pending','accepted'))
+      elsif member_role = 'owner' and ((action = 'internal-approve'
+          and (acceptance = 'pending' or (acceptance = 'accepted'
+            and not coalesce(task->'acceptanceSubmission' ? 'version',false)))
+          and not coalesce(task->'internalReview'->>'verdict' = 'accepted'
+            and task->'acceptanceSubmission' ? 'version',false))
           or (action = 'internal-return' and acceptance = 'pending')) then
         conclusion := coalesce(btrim(payload->>'reason'), '');
         if (payload ? 'reason' and jsonb_typeof(payload->'reason') is distinct from 'string')
@@ -231,6 +264,9 @@ begin
         end if;
       elsif acceptance = 'pending' and member_role = 'reviewer' and not assigned
         and lower(coalesce(task->>'submittedBy','')) <> email and action in ('approve','return') then
+        if task->'acceptanceSubmission' ? 'version' and task->'internalReview'->>'verdict' is distinct from 'accepted' then
+          return jsonb_build_object('status',400,'error','internal_approval_required');
+        end if;
         organization := btrim(payload->>'organization');
         conclusion := btrim(payload->>'conclusion');
         evidence := btrim(payload->>'evidence');
