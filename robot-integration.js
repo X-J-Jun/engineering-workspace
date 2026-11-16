@@ -120,7 +120,8 @@
       return;
     }
     const generation = ++sceneGeneration;
-    pending = window.RobotWorkstation.mount(sceneHost, {onSelect(id) {
+    pending = window.RobotWorkstation.mount(sceneHost, {onSelect(device) {
+      const id = typeof device === 'string' ? device : device?.id;
       if (labels[id]) { selected = id; renderDetails(); }
     }});
     try {
