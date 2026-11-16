@@ -1,16 +1,10 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="yellow">
+<html lang="zh-CN" data-theme="industrial">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>工程项目管理系统</title>
-<script>
-  try {
-    if (localStorage.getItem('pm_workspace_theme') === 'teal') {
-      document.documentElement.dataset.theme = 'teal';
-    }
-  } catch {}
-</script>
+
 <style>
   :root{
     --navy:#17375e;
@@ -1151,7 +1145,151 @@
     .delivery-layout { grid-template-columns:1fr; gap:8px; }
     .delivery-side { padding-left:0; border-left:0; }
   }
+
+  /* Industrial workspace palette */
+  :root {
+    color-scheme: dark;
+    --navy:#dceefa; --blue:#53b9df; --blue-soft:#183345;
+    --ink:#d8e7f1; --muted:#9aafbe; --line:#304958;
+    --page:#08121c; --white:#111f2b; --green:#70d2a5;
+    --green-soft:#143c35; --amber:#f0c77e; --amber-soft:#493b26;
+    --red:#ff9b91; --red-soft:#4d292d; --gold:#6ebed7;
+  }
+  :root:not([data-cloud-entry]) body, body {
+    background:radial-gradient(ellipse at 70% -25%,#183e56 0,transparent 55%),#08121c;
+    color:var(--ink);
+    font-family:"Segoe UI","Microsoft YaHei",sans-serif;
+  }
+  :root:not([data-cloud-entry]) .sidebar {
+    background:#0c1a27; border-color:#253d4b; box-shadow:none;
+  }
+  :root:not([data-cloud-entry]) .sidebar-brand { border-color:#2a4250; }
+  :root:not([data-cloud-entry]) .sidebar-brand strong,
+  :root:not([data-cloud-entry]) .sidebar a { color:#d9e9f1; }
+  :root:not([data-cloud-entry]) .sidebar-brand span,
+  .workspace-nav-group p { color:#93aebb; }
+  :root:not([data-cloud-entry]) .sidebar a:hover,
+  :root:not([data-cloud-entry]) .sidebar a:focus-visible,
+  :root:not([data-cloud-entry]) .sidebar a[aria-current] {
+    background:#183b4d; color:#d8f5ff;
+  }
+  :root:not([data-cloud-entry]) .sidebar a[aria-current]::before { background:#65d4f6; }
+  :root:not([data-cloud-entry]) .workspace-header {
+    background:#0e1c29; border-color:#283f4d; box-shadow:0 4px 18px #0004;
+  }
+  :root:not([data-cloud-entry]) .workspace-header h1,
+  :root:not([data-cloud-entry]) .workspace-context label { color:#e1eef5; }
+  :root:not([data-cloud-entry]) .workspace-context .sync-status {
+    background:#15352f; color:#a9e7c7; border-color:#2b6654;
+  }
+  :root:not([data-cloud-entry]) .workspace-context .sync-status[data-mode="syncing"] {
+    background:#403421; color:#ffe0a1; border-color:#71582e;
+  }
+  :root:not([data-cloud-entry]) .workspace-context .sync-status[data-mode="error"] {
+    background:#49252a; color:#ffc1b9; border-color:#814448;
+  }
+  main > section, .workspace-overview, .app-dialog, table {
+    background:#101f2b; color:var(--ink); border-color:var(--line);
+  }
+  main > section { box-shadow:0 8px 26px #0003; }
+  .workspace-header h1, main h2 { font-family:"Segoe UI","Microsoft YaHei",sans-serif; letter-spacing:.02em; }
+  main > section h2, h2, h3, h4, .dialog-head h3,
+  .panel-heading h3, .project-card h3, .current-project-info strong,
+  .board-head strong, .score-preview strong, .metric strong,
+  .acceptance-item h4, .impact-summary strong { color:#e3f3fa; }
+  .hint, .field label, .panel-heading p, .project-card p, .board-card p,
+  .acceptance-item p, .metric span, .current-project-info, .muted, footer {
+    color:#a7bdc9;
+  }
+  input, select, textarea, [data-cloud-entry] .cloud-login input,
+  .backup-actions input[type=file] {
+    color:#e3eef5; background:#0a1924; border-color:#365263;
+  }
+  input::placeholder, textarea::placeholder { color:#8199a8; }
+  input:focus, select:focus, textarea:focus, button:focus-visible {
+    border-color:#67d0ef; outline:2px solid #65c9ed88; outline-offset:2px;
+  }
+  input:disabled, select:disabled, textarea:disabled, button:disabled {
+    color:#8a9ca6; background:#1c2b34; opacity:.72;
+  }
+  button { background:#247da2; color:#fff; border-color:#399ec1; box-shadow:none; }
+  button:hover:not(:disabled) { background:#3099bd; }
+  button.secondary, .icon-button { background:#20394a; color:#d9eef8; border-color:#38596a; }
+  button.secondary:hover:not(:disabled), .icon-button:hover:not(:disabled) { background:#2b5064; }
+  button.danger { background:#552f35; color:#ffd0c9; border-color:#8b4e53; }
+  .current-project-bar, .board-head, .score-preview,
+  .project-card, .project-card.active, .innovation-card, .metric,
+  .board-card, .board-column, .acceptance-item, .acceptance-materials,
+  .overview-rates label, .empty, .collision-card {
+    background:#152938; border-color:#35505e; color:var(--ink);
+    box-shadow:none;
+  }
+  .project-card.active { border-color:#5bbedc; }
+  .project-card::before { background:#446475; }
+  .project-card.active::before { background:#69c7e3; }
+  .collision-card h4 { color:#f3d29d; }
+  .collision-project, .blocker-entry { border-color:#35505e; }
+  .table-wrap { background:#101f2b; border-color:#35505e; box-shadow:none; }
+  th, td { border-color:#304958; }
+  th { background:#1b3445; color:#e2f1f7; }
+  tbody tr:hover { background:#20394a; }
+  tr.first-level-row { background:#1a3040; }
+  tr.first-level-row td { color:#e3f3fa; }
+  .status-pill, .level-tag, .panel-badge, .status-chip {
+    background:#274252; color:#daedf4;
+  }
+  .status-chip.warn { background:#493b26; color:#ffda9c; }
+  .status-chip.danger { background:#512a2e; color:#ffc5bc; }
+  .status-chip.ok { background:#163f36; color:#a5e9c7; }
+  .progress { background:#293f4c; }
+  .progress-bar { background:linear-gradient(90deg,#2b9984,#69d7bc); }
+  .dialog-head { background:#19303f; border-color:#365263; }
+  .app-dialog::backdrop { background:rgba(0,8,16,.76); backdrop-filter:blur(4px); }
+  .acceptance-flow-steps li { background:#243b49; color:#bdd0db; }
+  .acceptance-flow-steps [aria-current="step"] { background:#22526a; color:#e0f6ff; }
+  .acceptance-materials a, a { color:#8ddcf8; }
+  .overview-rates progress { accent-color:#61ceb2; }
+  .workspace-overview .overview-metrics button:not(.danger):not(.secondary) {
+    background:#152e3d; border-color:#395669; color:#c9dee9;
+  }
+  .workspace-overview .overview-metrics strong { color:#e0f5fd; }
+  .gantt-header, .gantt-header > strong { background:#1c3748; color:#e2f1f7; }
+  .gantt-task, .gantt-parent-row, .gantt-parent-row .gantt-task {
+    background:#152a38; color:#e1eef4;
+  }
+  .gantt-group-toggle.secondary { color:#e1eef4; }
+  .gantt-group-toggle.secondary:hover { background:#244555; }
+  .gantt-group-label small, .gantt-task-meta { color:#a9bfca; }
+  .gantt-group-bar { background:#365364; }
+  .gantt-group-bar i { background:#58c8a4; }
+  .gantt-unscheduled { color:#a9bfca; }
+  .plan-views a { background:#152c3a; color:#cfe7f1; border-color:#395566; }
+  .plan-views [aria-current="page"] { background:#26526a; color:#fff; }
+  :focus-visible { outline-color:#73d6f3; }
+  [data-cloud-entry] body {
+    background:linear-gradient(90deg,rgba(5,17,29,.56),rgba(5,17,29,.88)),
+      var(--workspace-background-image) 14% center / auto 100dvh no-repeat fixed #08121c;
+  }
+  [data-cloud-entry] .cloud-login, .cloud-login {
+    background:rgba(12,27,39,.96); color:#e4f2f8; border-color:#476577;
+    box-shadow:0 24px 75px #0009;
+  }
+  [data-cloud-entry] .cloud-login-brand, .cloud-login-brand {
+    background:rgba(29,62,77,.8); color:#e2f6ff;
+  }
+  .cloud-login-content h2 { color:#e5f4fb; font-family:"Segoe UI","Microsoft YaHei",sans-serif; }
+  .cloud-login-mark { background:#236781; color:#fff; }
+  #cloudLoginError { color:#ffaba1; }
+  .sidebar-toggle { background:#17435a; color:#fff; }
+  @media print {
+    :root { color-scheme:light; }
+    body, main > section, table { background:#fff !important; color:#111 !important; }
+    main > section h2, th, td { color:#111 !important; }
+    th { background:#eee !important; }
+  }
 </style>
+<link rel="stylesheet" href="robot-workstation.css">
+<link rel="stylesheet" href="robot-integration.css">
 </head>
 <body>
 <div class="fun-background" aria-hidden="true"></div>
@@ -1188,11 +1326,6 @@
   <div class="workspace-context">
     <label for="projectSwitcher">当前项目</label>
     <select id="projectSwitcher"></select>
-    <label for="themeSwitcher">主题</label>
-    <select id="themeSwitcher">
-      <option value="yellow">浅黄色</option>
-      <option value="teal">深青色</option>
-    </select>
     <span id="currentProjectBadge" hidden></span>
     <button id="cloudSwitch" type="button" class="secondary" hidden>切换账号</button>
     <button id="cloudLogout" type="button" class="secondary" hidden>退出登录</button>
@@ -1945,6 +2078,8 @@ function normalizeState(raw) {
             tasks: project.baseline.tasks.filter(task => task && task.id).map(taskSnapshot)
           }
           : null,
+        ...(project.robotWorkspace && typeof project.robotWorkspace === 'object' && !Array.isArray(project.robotWorkspace)
+          ? {robotWorkspace: project.robotWorkspace} : {}),
         delayEventCount: Math.max(0, Number(project.delayEventCount) || 0)
       };
     });
@@ -2204,7 +2339,7 @@ async function connectServer({applyAfterGithub = false} = {}) {
     const response = await workspaceRequest(draft ? '/api/sync' : '/api/state', {
       method: draft ? 'POST' : 'GET',
       headers: draft ? {'Content-Type': 'application/json'} : {},
-      body: draft ? JSON.stringify({actor: draft.actor, revision: draft.revision, state: sharedSnapshot(draft.data)}) : undefined,
+      body: draft ? JSON.stringify({actor: draft.actor, revision: draft.revision, robotWorkspaceVersion: 1, state: sharedSnapshot(draft.data)}) : undefined,
       cache: 'no-store'
     });
     if (response.status === 409 || (draft && response.status === 403)) {
@@ -4172,16 +4307,6 @@ memberList.addEventListener('click', async event => {
   }
 });
 
-const themeSwitcher = document.querySelector('#themeSwitcher');
-themeSwitcher.value = document.documentElement.dataset.theme;
-themeSwitcher.addEventListener('change', () => {
-  const theme = themeSwitcher.value;
-  document.documentElement.dataset.theme = theme;
-  try {
-    localStorage.setItem('pm_workspace_theme', theme);
-  } catch {}
-});
-
 const projectSwitcher = document.querySelector('#projectSwitcher');
 const taskQuery = document.querySelector('#taskQuery');
 const taskFilter = document.querySelector('#taskFilter');
@@ -4486,5 +4611,7 @@ if (sharedMode) {
   });
 }
 </script>
+<script src="robot-workstation.js"></script>
+<script src="robot-integration.js"></script>
 </body>
 </html>

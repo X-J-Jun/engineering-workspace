@@ -79,6 +79,42 @@ returns boolean language sql set search_path = '' as $$
 $$;
 revoke all on function workspace_private.review_records_unchanged(jsonb,jsonb) from public, anon, authenticated;
 
+create or replace function workspace_private.scoped_robot_workspace(workspace jsonb, visible jsonb)
+returns jsonb language sql immutable set search_path = '' as $$
+  select jsonb_build_object(
+    'enabled', coalesce(workspace->'enabled' = 'true'::jsonb, false),
+    'targets', jsonb_strip_nulls(jsonb_build_object(
+      'durationWeeks', workspace->'targets'->'durationWeeks',
+      'budgetCny', workspace->'targets'->'budgetCny',
+      'cycleSeconds', workspace->'targets'->'cycleSeconds',
+      'positionMm', workspace->'targets'->'positionMm',
+      'interlockPercent', workspace->'targets'->'interlockPercent',
+      'sourceDate', workspace->'targets'->'sourceDate'
+    )),
+    'links', (
+      select coalesce(jsonb_object_agg(device.key, jsonb_build_object(
+        'taskIds', (
+          select coalesce(jsonb_agg(item.id), '[]'::jsonb)
+          from jsonb_array_elements(
+            case when jsonb_typeof(device.value->'taskIds') = 'array'
+              then device.value->'taskIds' else '[]'::jsonb end
+          ) as item(id)
+          where jsonb_typeof(item.id) = 'string'
+            and exists (select 1 from jsonb_array_elements(visible) as task
+              where item.id in (task->'id', task->'parentId'))
+        ),
+        'riskIds', '[]'::jsonb
+      )), '{}'::jsonb)
+      from jsonb_each(
+        case when jsonb_typeof(workspace->'links') = 'object'
+          then workspace->'links' else '{}'::jsonb end
+      ) as device
+      where jsonb_typeof(device.value) = 'object'
+    )
+  )
+$$;
+revoke all on function workspace_private.scoped_robot_workspace(jsonb,jsonb) from public, anon, authenticated;
+
 create or replace function workspace_private.scoped_document(doc jsonb, email text, member_role text)
 returns jsonb language plpgsql set search_path = '' as $$
 declare
@@ -95,7 +131,10 @@ begin
           where delivery->'officialReview'->>'reviewer' = email))));
   return jsonb_build_object(
     'version',2, 'risks','[]'::jsonb,
-    'projects',(select coalesce(jsonb_agg(jsonb_build_object('id',p->'id','name',p->'name')),'[]')
+    'projects',(select coalesce(jsonb_agg(jsonb_build_object('id',p->'id','name',p->'name') ||
+        case when jsonb_typeof(p->'robotWorkspace') = 'object' then
+          jsonb_build_object('robotWorkspace',workspace_private.scoped_robot_workspace(p->'robotWorkspace',visible))
+        else '{}'::jsonb end),'[]')
       from jsonb_array_elements(doc->'projects') as p
       where exists (select 1 from jsonb_array_elements(visible) as task where task->'projectId' = p->'id')),
     'tasks',(select coalesce(jsonb_agg(task),'[]')
@@ -171,6 +210,10 @@ begin
       null;
     elsif payload->'revision' is distinct from to_jsonb(current_revision) then
       return jsonb_build_object('status',409,'error','revision_conflict');
+    elsif route = 'sync' and payload->'robotWorkspaceVersion' is distinct from '1'::jsonb
+      and exists (select 1 from jsonb_array_elements(old_doc->'projects') as project
+        where project ? 'robotWorkspace') then
+      return jsonb_build_object('status',409,'error','client_upgrade_required');
     elsif route = 'sync' then
       doc := payload->'state';
       if not workspace_private.valid_document(doc) then

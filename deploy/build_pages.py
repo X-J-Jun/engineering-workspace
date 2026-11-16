@@ -2,6 +2,7 @@
 import json
 import os
 import re
+import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,3 +23,6 @@ output = ROOT / "_site"
 output.mkdir(exist_ok=True)
 (output / "index.html").write_text(html, encoding="utf-8")
 
+
+for asset in ("robot-workstation.js", "robot-workstation.css", "robot-integration.js", "robot-integration.css"):
+    shutil.copy2(ROOT / asset, output / asset)
