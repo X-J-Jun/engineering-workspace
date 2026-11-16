@@ -4655,8 +4655,8 @@ if (sharedMode) {
   let pending = false;
   let fallback = false;
 
-  const isLoginEntry = () => cloudLogin.open && 'cloudEntry' in root.dataset &&
-    cloudLogin.dataset.switching !== 'true';
+  /* The workstation stays behind every sign-in step, including account switching. */
+  const isLoginEntry = () => cloudLogin.open && 'cloudEntry' in root.dataset;
 
   function refreshPreview() {
     if (!isLoginEntry()) {
