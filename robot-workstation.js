@@ -138,8 +138,8 @@
       equipment[device.id].userData.device = device.id;
     }
 
-    box(scene, [25,.26,11.8], [0,-.2,0], floorMat);
-    box(scene, [25,.1,11.8], [0,-.35,0], dark);
+    box(scene, [36,.26,18], [0,-.2,-1], floorMat);
+    box(scene, [36,.1,18], [0,-.35,-1], dark);
     for (const x of [-6.15,-.2,5.9]) {
       const shadow=mesh(scene,shadowPlane,shadowMaterial,[7.2,5.1,1],[x,-.064,.15]);
       shadow.rotation.x=-Math.PI/2;
@@ -174,7 +174,8 @@
       }
       const driveX=x+width/2-.34;
       box(parent,[.4,.34,.23],[driveX,.8,beltZ+.83],dark);
-      cylinder(parent,.147,.39,[driveX,.8,beltZ+.99],steel,'z');
+      const motor=cylinder(parent,.147,.39,[driveX,.8,beltZ+.99],steel,'z');
+      if (Math.abs(x+6.67)<.01) conveyorParts.push({object:motor,name:'输送驱动电机',offset:new THREE.Vector3(.7,.5,.7),home:motor.position.clone()});
       for (let i=0;i<4;i++) ring(parent,.15,[driveX,.8,beltZ+.9+i*.075],dark,'z');
       box(parent,[width-.4,.12,.08],[x,.66,beltZ+.55],rubber);
       if (!preview) for (let offset=-width/2+.36;offset<width/2-.16;offset+=.27) {
@@ -182,10 +183,13 @@
       }
     }
 
+    const conveyorParts = [];
     bench(equipment.feed,-6.67,4.75);
     bench(equipment.fixture,-2.15,4.25);
     bench(equipment.vision,2.05,3.95);
     bench(equipment.output,6.53,4.9);
+    bench(equipment.feed,-11.35,4.6);
+    bench(equipment.output,11.35,4.75);
 
     function tote(parent, x, z, filled) {
       box(parent,[1.15,.15,.9],[x,1,z],dark);
@@ -267,13 +271,18 @@
     const feeder = group(equipment.feed,-8.65,0,-.45);
     cylinder(feeder,.48,.74,[0,.41,0],steel);
     cylinder(feeder,.57,.115,[0,.77,0],dark);
-    for (const size of [.59,.48,.36]) ring(feeder,size,[0,.9,0],size===.59?steel:green);
+    const feederParts = [];
+    for (const size of [.59,.48,.36]) {
+      const part=ring(feeder,size,[0,.9,0],size===.59?steel:green);
+      feederParts.push({object:part,name:size===.59?'振动盘外壳':'螺旋供料轨道',offset:new THREE.Vector3(size-.4,.5+(size-.36)*2,.35),home:part.position.clone()});
+    }
     for (let i=0;i<12;i++) {
       const angle=i*Math.PI/6;
       cylinder(feeder,.038,.025,[.43*Math.cos(angle),.94,.43*Math.sin(angle)],frame);
     }
     hose(feeder,[[.42,.23,0],[.68,.08,.12],[.85,.07,.43],[1.05,.07,.51]],rubber);
 
+    const robotParts=[];
     function robot(parent,x,z) {
       const base = group(parent,x,0,z);
       box(base,[.84,.65,.84],[0,.38,0],steel);
@@ -292,7 +301,8 @@
       cap(shoulder,[.26,.82,.25],[0,.64,0],enamel);
       for (const side of [-1,1]) {
         const x=side*.32;
-        cylinder(shoulder,.193,.071,[x,0,0],steel,'x');
+        const cover=cylinder(shoulder,.193,.071,[x,0,0],steel,'x');
+        if (Math.abs(base.position.x)<.01) robotParts.push({object:cover,name:side<0?'肩关节轴承':'肩关节伺服驱动',offset:new THREE.Vector3(side*.6,.1,0),home:cover.position.clone()});
         ring(shoulder,.164,[x+side*.036,0,0],dark,'x');
         if (!preview) fasteners(shoulder,.13,x+side*.045,frame);
       }
@@ -301,7 +311,8 @@
       cylinder(elbow,.22,.49,[0,0,0],dark,'x');
       cap(elbow,[.3,.31,.25],[0,0,0],enamel);
       cap(elbow,[.21,.76,.21],[0,.58,0],enamel);
-      cylinder(elbow,.154,.075,[.252,0,0],steel,'x');
+      const elbowCover=cylinder(elbow,.154,.075,[.252,0,0],steel,'x');
+      if (Math.abs(base.position.x)<.01) robotParts.push({object:elbowCover,name:'肘部关节减速器',offset:new THREE.Vector3(.6,.25,.2),home:elbowCover.position.clone()});
       ring(elbow,.121,[.292,0,0],dark,'x');
       if (!preview) fasteners(elbow,.092,.304,frame);
       hose(elbow,[[.22,.02,-.05],[.245,.21,-.22],[.2,.8,-.22],[.117,1.25,-.11]],rubber,.03);
@@ -343,6 +354,7 @@
       robot(equipment.output,6.58,-.13)
     ];
     named.robot = arms[1].base;
+    named.robotParts = arms[1].base;
     named.feed = arms[0].base;
     named.output = arms[2].base;
 
@@ -362,10 +374,14 @@
     named.vision = sensor;
     for (const z of [-.82,.82]) box(sensor,[.095,2.8,.095],[0,1.4,z],frame);
     box(sensor,[.1,.1,1.7],[0,2.77,0],frame);
-    box(sensor,[.39,.31,.47],[0,2.57,0],dark);
+    const visionParts = [];
+    function visionPart(object,name,offset) {
+      visionParts.push({object,name,offset:new THREE.Vector3(...offset),home:object.position.clone()});
+    }
+    visionPart(box(sensor,[.39,.31,.47],[0,2.57,0],dark),'工业相机',[0,.45,-.32]);
     cylinder(sensor,.135,.11,[0,2.34,0],dark);
     cylinder(sensor,.091,.04,[0,2.265,0],screen);
-    ring(sensor,.153,[0,2.273,0],blue);
+    visionPart(ring(sensor,.153,[0,2.273,0],blue),'视觉环形光源',[0,-.36,.18]);
     ring(sensor,.195,[0,2.3,0],steel);
     hose(sensor,[[.13,2.65,-.2],[.15,2.8,-.38],[.1,2.79,-.79],[.09,1.63,-.82]],rubber);
     for (const z of [-.82,.82]) {
@@ -382,6 +398,38 @@
     scan.userData.skipPick = true;
     scan.visible = false;
     named.safety = door;
+
+    // Background factory silhouettes are intentionally lower detail.
+    const factory=group(scene);
+    for (const x of [-13,-7,-1,5,11]) {
+      const rack=group(factory,x,0,-6.3);
+      for (const side of [-1,1]) box(rack,[.09,3.4,.09],[side*1.25,1.7,0],steel);
+      for (const y of [.3,1.25,2.2,3.2]) {
+        box(rack,[2.55,.09,.95],[0,y,0],frame);
+        if(y<3) for (const dx of [-.72,0,.72]) box(rack,[.59,.48,.7],[dx,y+.28,0],dark);
+      }
+    }
+    for (const x of [-11,0,10]) {
+      const cell=group(factory,x,0,-9.2);
+      box(cell,[2.4,1.4,1.15],[0,.73,0],dark);
+      for (const side of [-1,1]) box(cell,[.09,3,.09],[side*1.15,1.5,0],steel);
+      box(cell,[2.35,.1,.1],[0,3,0],frame);
+      box(cell,[1.1,.65,.06],[0,2.2,.47],screen);
+    }
+    const agv=group(equipment.output,10.7,0,3.7);
+    const agvParts=[];
+    function agvPart(object,name,offset) {
+      agvParts.push({object,name,offset:new THREE.Vector3(...offset),home:object.position.clone()});
+    }
+    agvPart(box(agv,[1.7,.35,1.05],[0,.38,0],dark),'AGV 车体',[0,.55,0]);
+    agvPart(box(agv,[1.22,.2,.76],[0,.66,0],steel),'承载平台',[0,1.05,0]);
+    for (const x of [-.57,.57]) for (const z of [-.5,.5]) {
+      const wheel=cylinder(agv,.18,.1,[x,.19,z],rubber,'z');
+      agvPart(wheel,'AGV 行走轮',[x*.5,-.03,z*.8]);
+    }
+    box(agv,[.9,.1,.1],[0,.38,.54],blue);
+    named.agv=agv; named.conveyor=conveyorParts[0].object; named.feeder=feeder;
+    named.visionParts=sensor;
 
     const pallet = group(scene,feedX,beltTop,beltZ);
     box(pallet,[.87,.08,.71],[0,.08,0],oak);
@@ -408,7 +456,7 @@
     meshes.add(selection.geometry);
     materials.add(selection.material);
 
-    return {scene,equipment,named,followLight,arms,fixtureParts,door,pallet,base,productA,productB,insert,insertA,insertB,scan,selection,stackLights,quiet,
+    return {scene,equipment,named,followLight,arms,fixtureParts,conveyorParts,feederParts,visionParts,agvParts,robotParts,door,pallet,base,productA,productB,insert,insertA,insertB,scan,selection,stackLights,quiet,
       highlight(id) {
         selection.visible = Boolean(id);
         if (id) selection.setFromObject(named[id] || equipment[id]);
@@ -494,8 +542,8 @@
       camera.aspect = width/height;
       camera.updateProjectionMatrix();
       renderer.setSize(width,height,false);
-      const fit = 10.6 / (Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*camera.aspect);
-      homeDistance = Math.min(64,Math.max(24,fit));
+      const fit = 16.5 / (Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*camera.aspect);
+      homeDistance = Math.min(64,Math.max(34,fit));
       if (overview) home(true);
       draw = true;
     }
@@ -646,7 +694,7 @@
       '<details class="robot-station-detail" open><summary>设备与项目</summary></details></div>'+
       '<div class="robot-station-actions">'+
       '<fieldset><legend>运行</legend><button type="button" data-action="play">开始生产</button><button type="button" data-action="pause">暂停</button><button type="button" data-action="stop">停止并复位</button><button type="button" data-action="model">工件 A</button><button type="button" data-action="door">打开安全门</button><button type="button" data-action="emergency" class="robot-emergency">急停</button></fieldset>'+
-      '<fieldset><legend>拆解</legend><button type="button" data-action="tool">末端执行器</button><button type="button" data-action="fixture">柔性夹具</button><button type="button" data-action="assemble">重新组装</button></fieldset>'+
+      '<fieldset><legend>拆解</legend><button type="button" data-action="tool">末端执行器</button><button type="button" data-action="robotParts">机器人关节</button><button type="button" data-action="fixture">柔性夹具</button><button type="button" data-action="conveyor">输送驱动</button><button type="button" data-action="feeder">振动供料</button><button type="button" data-action="visionParts">视觉检测</button><button type="button" data-action="agv">AGV 搬运车</button><button type="button" data-action="assemble">重新组装</button></fieldset>'+
       '<fieldset><legend>视角</legend><button type="button" data-action="reset">整线总览</button><button type="button" data-action="rotate" aria-pressed="false">自动环视</button></fieldset>'+
       '</div></div>';
     const ui=container.querySelector('.robot-station');
@@ -690,8 +738,8 @@
     const overlay=document.createElement('div');
     overlay.className='robot-station-part-labels';
     refs.viewport.append(overlay);
-    const partGroups={tool:line.arms[1].toolParts,fixture:line.fixtureParts};
-    for (const part of [...partGroups.tool,...partGroups.fixture]) {
+    const partGroups={tool:line.arms[1].toolParts,fixture:line.fixtureParts,robotParts:line.robotParts,conveyor:line.conveyorParts,feeder:line.feederParts,visionParts:line.visionParts,agv:line.agvParts};
+    for (const part of Object.values(partGroups).flat()) {
       part.label=document.createElement('span');
       part.label.hidden=true;
       part.label.textContent=part.name;
@@ -809,18 +857,23 @@
           simulationMessage='已切换工件 '+model+'，夹紧位置已调整。';
           break;
         case 'tool':
-        case 'fixture': {
+        case 'fixture':
+        case 'robotParts':
+        case 'conveyor':
+        case 'feeder':
+        case 'visionParts':
+        case 'agv': {
           if (running) {
             simulationMessage='停止生产模拟后可拆解设备。';
             break;
           }
           explosion=action;
-          const id=action==='tool'?'robot':'fixture';
-          const part=action==='tool'?line.arms[1].tool:line.named.fixture;
+          const id={tool:'robot',robotParts:'robot',fixture:'fixture',conveyor:'feed',feeder:'feed',visionParts:'vision',agv:'output'}[action];
+          const part=action==='tool'?line.arms[1].tool:line.named[action];
           select(id,false);
           viewer.controls.autoRotate=false;
           viewer.focus(id,part,'part');
-          simulationMessage=action==='tool'?'末端执行器拆解 · 快换机构与夹爪':'柔性夹具拆解 · 底座、夹紧机构与定位销';
+          simulationMessage=actions[action].textContent+'拆解 · 结构示意';
           break;
         }
         case 'assemble': explosion=null; simulationMessage='设备已重新组装。'; break;
@@ -902,6 +955,17 @@
         if (part.object.position.distanceToSquared(target)>1e-6) {
           part.object.position.lerp(target,blend);
           changed=true;
+        }
+      }
+      for (const [kind,parts] of Object.entries(partGroups)) {
+        if (kind==='tool' || kind==='fixture') continue;
+        for (const part of parts) {
+          target.copy(part.home);
+          if (explosion===kind) target.add(part.offset);
+          if (part.object.position.distanceToSquared(target)>1e-6) {
+            part.object.position.lerp(target,blend);
+            changed=true;
+          }
         }
       }
       const angle=doorOpen?Math.PI*.46:0;

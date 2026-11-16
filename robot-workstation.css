@@ -37,17 +37,19 @@
 :root {
   --cinematic-night:#060b15;
   --cinematic-dust:
-    radial-gradient(1px 1px at 14px 33px,#c4ddff85 95%,transparent),
-    radial-gradient(1px 1px at 61px 75px,#8fb6e56b 95%,transparent),
-    radial-gradient(1px 1px at 123px 99px,#dae4f15e 95%,transparent);
+    radial-gradient(1px 1px at 19px 37px,#c4ddff70 95%,transparent),
+    radial-gradient(1px 1px at 79px 146px,#8fb6e55f 95%,transparent),
+    radial-gradient(1px 1px at 173px 91px,#dae4f14a 95%,transparent),
+    radial-gradient(1px 1px at 272px 203px,#aecdf95c 95%,transparent),
+    radial-gradient(1px 1px at 44px 223px,#fbdfb546 95%,transparent);
   --cinematic-horizon:
-    radial-gradient(ellipse at 80% 110%,#a7653b35,transparent 48%),
-    radial-gradient(ellipse at 12% 70%,#143154ad,transparent 60%),
-    linear-gradient(153deg,#101b2d 0%,#080f1c 46%,var(--cinematic-night) 85%);
+    radial-gradient(ellipse at 82% 108%,#b8794a48,transparent 51%),
+    radial-gradient(ellipse at 11% 68%,#1b416dba,transparent 62%),
+    linear-gradient(153deg,#14243b 0%,#0a1424 46%,var(--cinematic-night) 85%);
   --cinematic-background:
-    radial-gradient(ellipse 60% 58% at var(--light-x,42%) var(--light-y,26%),#3877b242 0%,#294d7823 45%,transparent 83%),
+    radial-gradient(ellipse 65% 62% at var(--light-x,42%) var(--light-y,26%),#4b98d960 0%,#315e9540 43%,transparent 83%),
     var(--cinematic-dust), var(--cinematic-horizon);
-  --cinematic-size:auto,149px 113px,239px 173px,311px 211px,auto,auto,auto;
+  --cinematic-size:auto,211px 167px,283px 229px,367px 251px,419px 337px,557px 389px,auto,auto,auto;
 }
 
 @media screen {
