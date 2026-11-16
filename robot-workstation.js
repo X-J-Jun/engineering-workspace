@@ -729,8 +729,10 @@
 
     function assemble() {
       explodeTarget = 0;
+      explodeSub = null;
       setIsolation(null);
       setPartVisibility(null);
+      model.selection.visible = Boolean(selectedDevice);
       simulationMessage = '已重新组装';
       viewer.home();
       syncControls();
