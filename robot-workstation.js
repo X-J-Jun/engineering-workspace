@@ -81,7 +81,7 @@
     return target.texture;
   }
 
-  async function createViewer(host, { preview = false } = {}) {
+  async function createViewer(host, { preview = false, offsetX = 0 } = {}) {
     const [THREE, { OrbitControls }] = await loadLibraries();
     if (!window.RobotModel) throw new Error('缺少 3D 模型模块');
 
@@ -173,7 +173,7 @@
     let frames = 0;
     let update = () => {};
     let overlay = () => {};
-    let homeTarget = new THREE.Vector3(0, 1.32, .2);
+    let homeTarget = new THREE.Vector3(offsetX, 1.32, .2);
 
     const tempBox = new THREE.Box3();
     const tempVector = new THREE.Vector3();
@@ -1104,7 +1104,7 @@
     container.append(ui);
     let viewer;
     try {
-      viewer = await createViewer(ui.querySelector('.robot-preview-canvas'), { preview: true });
+      viewer = await createViewer(ui.querySelector('.robot-preview-canvas'), { preview: true, offsetX: 2.6 });
     } catch (error) {
       ui.remove();
       throw error;
