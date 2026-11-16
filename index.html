@@ -4620,6 +4620,24 @@ if (sharedMode) {
 <script src="robot-workstation.js"></script>
 <script>
 (() => {
+
+  const lightRoot = document.documentElement;
+  const lightMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  if (matchMedia('(any-pointer: fine)').matches) {
+    let glowFrame = 0;
+    let latestPoint;
+    window.addEventListener('pointermove', event => {
+      if (lightMotion.matches || event.pointerType === 'touch') return;
+      latestPoint = [event.clientX, event.clientY];
+      if (glowFrame) return;
+      glowFrame = requestAnimationFrame(() => {
+        glowFrame = 0;
+        if (lightMotion.matches) return;
+        lightRoot.style.setProperty('--light-x', (latestPoint[0] / innerWidth * 100).toFixed(1) + '%');
+        lightRoot.style.setProperty('--light-y', (latestPoint[1] / innerHeight * 100).toFixed(1) + '%');
+      });
+    }, {passive:true});
+  }
   if (!cloud) return;
   const host = document.querySelector('#cloudLoginPreview');
   const root = document.documentElement;

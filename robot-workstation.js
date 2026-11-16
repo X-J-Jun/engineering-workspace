@@ -41,15 +41,18 @@
 
   function createLine(THREE, preview) {
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#0b1726');
-    scene.fog = new THREE.FogExp2('#0b1726', .022);
+    scene.fog = new THREE.FogExp2('#080f1c', .016);
 
     scene.add(new THREE.HemisphereLight('#dcecff', '#52677c', 2.7));
     const key = new THREE.DirectionalLight('#fff2e5', 2.85);
     key.position.set(-5, 12, 8);
-    const rim = new THREE.DirectionalLight('#83c7ff', 1.4);
+    const rim = new THREE.DirectionalLight('#70baff', 1.85);
     rim.position.set(5, 5, -8);
-    scene.add(key, rim);
+    const bounce = new THREE.DirectionalLight('#ffd6a7', .7);
+    bounce.position.set(-9, 2, -5);
+    const followLight = new THREE.DirectionalLight('#b0d9ff', 1);
+    followLight.position.set(-1, 6, 5);
+    scene.add(key, rim, bounce, followLight);
 
     const mat = (color, properties = {}) => new THREE.MeshStandardMaterial({color, roughness:.55, ...properties});
     const frame = mat('#a9b7c5', {metalness:.66, roughness:.33});
@@ -83,7 +86,8 @@
     const cube = new THREE.BoxGeometry(1, 1, 1);
     const tube = new THREE.CylinderGeometry(1, 1, 1, preview ? 12 : 20);
     const sphere = new THREE.SphereGeometry(1, preview ? 12 : 20, 12);
-    const meshes = new Set([cube, tube, sphere]);
+    const ringGeometry = new THREE.TorusGeometry(1, .083, 8, preview ? 20 : 32);
+    const meshes = new Set([cube, tube, sphere, ringGeometry]);
     const materials = new Set([frame, steel, dark, rubber, enamel, glass, oak, amber, red, green, blue, quiet, screen, beam, floorMat]);
     const equipment = {};
     const named = {};
@@ -109,6 +113,25 @@
     const cylinder = (parent, radius, height, position, material, axis) =>
       mesh(parent, tube, material, [radius,height,radius], position, axis);
     const cap = (parent, size, position, material) => mesh(parent, sphere, material, size, position);
+
+    function ring(parent, radius, position, material, axis='y') {
+      const part = mesh(parent,ringGeometry,material,[radius,radius,radius],position);
+      if (axis==='y') part.rotation.x=Math.PI/2;
+      if (axis==='x') part.rotation.y=Math.PI/2;
+      return part;
+    }
+    function hose(parent, points, material, radius=.038) {
+      const path=new THREE.CatmullRomCurve3(points.map(point=>new THREE.Vector3(...point)));
+      const geometry=new THREE.TubeGeometry(path,preview?10:20,radius,6,false);
+      meshes.add(geometry);
+      parent.add(new THREE.Mesh(geometry,material));
+    }
+    function fasteners(parent,radius,x,material) {
+      for (let i=0; i<6; i++) {
+        const angle=i*Math.PI/3;
+        cylinder(parent,.022,.022,[x,radius*Math.sin(angle),radius*Math.cos(angle)],material,'x');
+      }
+    }
 
     for (const device of devices) {
       equipment[device.id] = group(scene);
@@ -140,7 +163,23 @@
         }
       }
       box(parent,[width*.67,.15,.84],[x,.2,beltZ],dark);
-      for (const dx of [-width/2+.21,width/2-.21]) cylinder(parent,.09,1.24,[x+dx,.998,beltZ],steel,'z');
+      for (const dx of [-width/2+.21,width/2-.21]) {
+        cylinder(parent,.09,1.24,[x+dx,.998,beltZ],steel,'z');
+        for (const side of [-1,1]) {
+          const z=beltZ+side*.765;
+          cylinder(parent,.155,.045,[x+dx,.99,z],dark,'z');
+          cylinder(parent,.09,.061,[x+dx,.99,z],steel,'z');
+          ring(parent,.077,[x+dx,.99,z+side*.035],frame,'z');
+        }
+      }
+      const driveX=x+width/2-.34;
+      box(parent,[.4,.34,.23],[driveX,.8,beltZ+.83],dark);
+      cylinder(parent,.147,.39,[driveX,.8,beltZ+.99],steel,'z');
+      for (let i=0;i<4;i++) ring(parent,.15,[driveX,.8,beltZ+.9+i*.075],dark,'z');
+      box(parent,[width-.4,.12,.08],[x,.66,beltZ+.55],rubber);
+      if (!preview) for (let offset=-width/2+.36;offset<width/2-.16;offset+=.27) {
+        box(parent,[.048,.13,.085],[x+offset,.66,beltZ+.59],steel);
+      }
     }
 
     bench(equipment.feed,-6.67,4.75);
@@ -224,10 +263,25 @@
     tote(equipment.robot,.53,1.65,true);
     tote(equipment.output,7.04,1.97,false);
 
+    // Vibratory feeder beside the input arm, clear of the pick path.
+    const feeder = group(equipment.feed,-8.65,0,-.45);
+    cylinder(feeder,.48,.74,[0,.41,0],steel);
+    cylinder(feeder,.57,.115,[0,.77,0],dark);
+    for (const size of [.59,.48,.36]) ring(feeder,size,[0,.9,0],size===.59?steel:green);
+    for (let i=0;i<12;i++) {
+      const angle=i*Math.PI/6;
+      cylinder(feeder,.038,.025,[.43*Math.cos(angle),.94,.43*Math.sin(angle)],frame);
+    }
+    hose(feeder,[[.42,.23,0],[.68,.08,.12],[.85,.07,.43],[1.05,.07,.51]],rubber);
+
     function robot(parent,x,z) {
       const base = group(parent,x,0,z);
       box(base,[.84,.65,.84],[0,.38,0],steel);
       cylinder(base,.42,.18,[0,.76,0],dark);
+      ring(base,.402,[0,.812,0],steel);
+      for (const dx of [-.3,.3]) for (const dz of [-.3,.3]) {
+        cylinder(base,.036,.042,[dx,.72,dz],frame);
+      }
       const yaw = group(base,0,.85,0);
       cylinder(yaw,.34,.22,[0,.1,0],enamel);
       const shoulder = group(yaw,0,.34,0);
@@ -236,12 +290,21 @@
       cylinder(shoulder,.28,.66,[0,0,0],dark,'x');
       cap(shoulder,[.36,.36,.3],[0,0,0],enamel);
       cap(shoulder,[.26,.82,.25],[0,.64,0],enamel);
-      box(shoulder,[.11,1.03,.055],[.13,.72,-.24],rubber);
+      for (const side of [-1,1]) {
+        const x=side*.32;
+        cylinder(shoulder,.193,.071,[x,0,0],steel,'x');
+        ring(shoulder,.164,[x+side*.036,0,0],dark,'x');
+        if (!preview) fasteners(shoulder,.13,x+side*.045,frame);
+      }
+      hose(shoulder,[[.25,.08,-.1],[.28,.28,-.28],[.255,.83,-.29],[.19,1.34,-.18]],rubber);
       const elbow = group(shoulder,0,upperLength,0);
       cylinder(elbow,.22,.49,[0,0,0],dark,'x');
       cap(elbow,[.3,.31,.25],[0,0,0],enamel);
       cap(elbow,[.21,.76,.21],[0,.58,0],enamel);
-      box(elbow,[.08,.86,.05],[.094,.49,-.193],rubber);
+      cylinder(elbow,.154,.075,[.252,0,0],steel,'x');
+      ring(elbow,.121,[.292,0,0],dark,'x');
+      if (!preview) fasteners(elbow,.092,.304,frame);
+      hose(elbow,[[.22,.02,-.05],[.245,.21,-.22],[.2,.8,-.22],[.117,1.25,-.11]],rubber,.03);
       const wrist = group(elbow,0,lowerLength,0);
       cap(wrist,[.23,.24,.2],[0,0,0],enamel);
       const tool = group(wrist,0,.08,0);
@@ -252,6 +315,8 @@
       addPart(box(tool,[.37,.15,.26],[0,.23,0],dark),'夹爪主体',[.05,.28,0]);
       addPart(box(tool,[.06,.2,.08],[-.165,.375,0],steel),'左夹指',[-.37,.47,0]);
       addPart(box(tool,[.06,.2,.08],[.165,.375,0],steel),'右夹指',[.34,.52,0]);
+      addPart(ring(tool,.125,[0,.078,0],steel),'腕部轴承环',[.21,.17,.27]);
+      addPart(ring(tool,.105,[0,.155,0],blue),'快换接口圈',[-.22,.3,-.24]);
       const aim = new THREE.Vector3();
       function pose(target, gripping=false) {
         aim.copy(target);
@@ -298,7 +363,15 @@
     for (const z of [-.82,.82]) box(sensor,[.095,2.8,.095],[0,1.4,z],frame);
     box(sensor,[.1,.1,1.7],[0,2.77,0],frame);
     box(sensor,[.39,.31,.47],[0,2.57,0],dark);
-    cylinder(sensor,.112,.16,[0,2.34,0],blue);
+    cylinder(sensor,.135,.11,[0,2.34,0],dark);
+    cylinder(sensor,.091,.04,[0,2.265,0],screen);
+    ring(sensor,.153,[0,2.273,0],blue);
+    ring(sensor,.195,[0,2.3,0],steel);
+    hose(sensor,[[.13,2.65,-.2],[.15,2.8,-.38],[.1,2.79,-.79],[.09,1.63,-.82]],rubber);
+    for (const z of [-.82,.82]) {
+      box(sensor,[.22,.24,.17],[0,1.28,z],dark);
+      cylinder(sensor,.035,.39,[0,1.37,z],steel);
+    }
     for (const dx of [-.55,.55]) {
       box(sensor,[.19,.13,.8],[dx,2.41,0],steel);
       box(sensor,[.145,.026,.73],[dx,2.33,0],blue);
@@ -335,7 +408,7 @@
     meshes.add(selection.geometry);
     materials.add(selection.material);
 
-    return {scene,equipment,named,arms,fixtureParts,door,pallet,base,productA,productB,insert,insertA,insertB,scan,selection,stackLights,quiet,
+    return {scene,equipment,named,followLight,arms,fixtureParts,door,pallet,base,productA,productB,insert,insertA,insertB,scan,selection,stackLights,quiet,
       highlight(id) {
         selection.visible = Boolean(id);
         if (id) selection.setFromObject(named[id] || equipment[id]);
@@ -353,7 +426,7 @@
 
   async function createViewer(host, { preview=false } = {}) {
     const [THREE,{OrbitControls}] = await loadLibraries();
-    const renderer = new THREE.WebGLRenderer({antialias:true,powerPreference:preview?'low-power':'default'});
+    const renderer = new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:preview?'low-power':'default'});
     renderer.setPixelRatio(Math.min(devicePixelRatio || 1,preview ? 1 : 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -376,6 +449,8 @@
     const desiredTarget = new THREE.Vector3();
     const homeDirection = new THREE.Vector3(9,10.5,24).normalize();
     const temp = new THREE.Vector3();
+    const lightTarget=new THREE.Vector3(-1,6,5);
+    const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
     const observers = new AbortController();
     const listen = {signal:observers.signal};
 
@@ -429,12 +504,24 @@
     observer.observe(host);
     controls.addEventListener('start', () => {focusMoving=false;overview=false;});
     controls.addEventListener('change', () => { draw=true; });
+    host.addEventListener('pointermove',event=>{
+      if (reducedMotion.matches || event.pointerType==='touch') return;
+      const rect=host.getBoundingClientRect();
+      lightTarget.set((event.clientX-rect.left)/rect.width*16-8,6+(1-(event.clientY-rect.top)/rect.height)*4,5);
+    },listen);
+    const resetLight=()=>lightTarget.set(-1,6,5);
+    host.addEventListener('pointerleave',resetLight,listen);
+    reducedMotion.addEventListener('change',resetLight,listen);
     function tick(time) {
       frame = 0;
       if (stopped || !visible || document.hidden) return;
       const dt = previousTime ? Math.min((time-previousTime)/1000,.15) : 0;
       previousTime = time;
       const animated = update(dt);
+      if (line.followLight.position.distanceToSquared(lightTarget)>.001) {
+        line.followLight.position.lerp(lightTarget,reducedMotion.matches?1:1-Math.exp(-dt*5));
+        draw=true;
+      }
       if (focusMoving) {
         const blend = 1-Math.exp(-dt*6.5);
         camera.position.lerp(desiredPosition,blend);
@@ -825,13 +912,34 @@
       if (changed && line.selection.visible && selected) line.highlight(selected);
       return changed;
     }, camera=>{
+      if (!explosion) {
+        overlay.hidden=true;
+        return;
+      }
+      overlay.hidden=false;
+      const {clientWidth:width,clientHeight:height}=overlay;
+      const positioned=[];
       for (const [kind,parts] of Object.entries(partGroups)) for (const part of parts) {
         part.label.hidden=kind!==explosion;
         if (part.label.hidden) continue;
         part.object.getWorldPosition(target).project(camera);
         part.label.hidden=target.z>1 || Math.abs(target.x)>1 || Math.abs(target.y)>1;
-        part.label.style.left=(target.x+1)*50+'%';
-        part.label.style.top=(1-target.y)*50+'%';
+        if (part.label.hidden) continue;
+        const labelWidth=part.label.offsetWidth;
+        const labelHeight=part.label.offsetHeight;
+        const x=(target.x+1)*width/2;
+        const y=(1-target.y)*height/2;
+        const before=positioned.length;
+        for (const offset of [0,-23,23,-46,46,-69,69]) {
+          const left=THREE.MathUtils.clamp(offset<0?x-labelWidth-12:x+12,4,width-labelWidth-4);
+          const top=THREE.MathUtils.clamp(y+offset-labelHeight,4,height-labelHeight-4);
+          if (positioned.some(box=>left<box.right && left+labelWidth>box.left && top<box.bottom && top+labelHeight>box.top)) continue;
+          part.label.style.left=left+'px';
+          part.label.style.top=top+'px';
+          positioned.push({left,right:left+labelWidth,top,bottom:top+labelHeight});
+          break;
+        }
+        part.label.hidden=positioned.length===before;
       }
     });
 

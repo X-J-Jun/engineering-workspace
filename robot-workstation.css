@@ -25,7 +25,7 @@
 .robot-station .robot-station-actions .robot-emergency.active { background:#a83730; color:#fff; }
 .robot-station .robot-station-actions button:disabled { opacity:.48; cursor:default; }
 .robot-station-part-labels { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
-.robot-station-part-labels span { position:absolute; transform:translate(7px,-100%); padding:3px 6px; border:1px solid #4383a0; border-radius:4px; background:#0d2435ef; color:#d3f3ff; font-size:11px; white-space:nowrap; }
+.robot-station-part-labels span { position:absolute; padding:3px 6px; border:1px solid #4383a0; border-radius:4px; background:#0d2435ef; color:#d3f3ff; font-size:11px; white-space:nowrap; }
 .robot-station-part-labels span::before { content:""; position:absolute; left:-8px; top:100%; width:10px; height:1px; background:#70bbd6; transform:rotate(-35deg); transform-origin:right; }
 .robot-preview { position:absolute; inset:0; }
 .robot-preview-controls { position:absolute; display:flex; flex-wrap:wrap; gap:6px; left:12px; bottom:12px; padding:6px; background:#0b1726c9; border-radius:6px; }
@@ -33,4 +33,54 @@
   .robot-station-viewport { min-height:clamp(280px,51vw,470px); }
   .robot-station-head { gap:6px 13px; }
   .robot-station-head .robot-station-tag { margin-inline-start:0; }
+}
+:root {
+  --cinematic-night:#060b15;
+  --cinematic-dust:
+    radial-gradient(1px 1px at 14px 33px,#c4ddff85 95%,transparent),
+    radial-gradient(1px 1px at 61px 75px,#8fb6e56b 95%,transparent),
+    radial-gradient(1px 1px at 123px 99px,#dae4f15e 95%,transparent);
+  --cinematic-horizon:
+    radial-gradient(ellipse at 80% 110%,#a7653b35,transparent 48%),
+    radial-gradient(ellipse at 12% 70%,#143154ad,transparent 60%),
+    linear-gradient(153deg,#101b2d 0%,#080f1c 46%,var(--cinematic-night) 85%);
+  --cinematic-background:
+    radial-gradient(ellipse 60% 58% at var(--light-x,42%) var(--light-y,26%),#3877b242 0%,#294d7823 45%,transparent 83%),
+    var(--cinematic-dust), var(--cinematic-horizon);
+  --cinematic-size:auto,149px 113px,239px 173px,311px 211px,auto,auto,auto;
+}
+
+@media screen {
+  :root body, :root[data-cloud-entry] body {
+    background:var(--cinematic-background);
+    background-size:var(--cinematic-size);
+    background-attachment:fixed;
+  }
+  :root:not([data-cloud-entry]) .sidebar,
+  :root:not([data-cloud-entry]) .workspace-header {
+    background:#09121eea;
+    border-color:#42638780;
+  }
+  :root main > section {
+    background:linear-gradient(157deg,#132238bd,#0a1524e8 76%);
+    border-color:#36536c;
+    box-shadow:0 17px 38px #0003;
+  }
+  :root[data-cloud-entry] .cloud-login {
+    background:linear-gradient(125deg,#12233ae8,#09121cf7 72%);
+    border-color:#52748c;
+    box-shadow:0 24px 100px #000a,0 0 48px #31558d27;
+  }
+  :root[data-cloud-entry] .cloud-login-brand {
+    background:transparent;
+    border-color:#49708b70;
+  }
+  .robot-station-viewport,
+  .robot-preview-canvas {
+    background:var(--cinematic-background);
+    background-size:var(--cinematic-size);
+  }
+}
+@media (prefers-reduced-motion:reduce) {
+  :root,.robot-station-canvas,.robot-preview-canvas { --light-x:42% !important; --light-y:26% !important; }
 }
