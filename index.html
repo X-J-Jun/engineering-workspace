@@ -2102,7 +2102,7 @@ function normalizeState(raw) {
   const requestedCurrent = text(source.currentProjectId);
   const currentProjectId = projectIds.has(requestedCurrent)
     ? requestedCurrent
-    : (projects[0]?.id || null);
+    : (projects.find(project => project.id === 'p07-robot-flexible-assembly-2026')?.id || projects[0]?.id || null);
   const fallbackProjectId = currentProjectId;
 
   const taskIds = new Set();
