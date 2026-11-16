@@ -43,6 +43,7 @@
       rubber: material('#0f151d', { roughness: .94, metalness: .02 }),
       oak: material('#c2945a', { roughness: .82, metalness: .02 }),
       yellow: material('#e8b23c', { roughness: .45, metalness: .2 }),
+      rail: material('#9a7f3c', { roughness: .62, metalness: .28 }),
       glass: material('#9fd4ef', { transparent: true, opacity: .06, depthWrite: false, side: THREE.DoubleSide, roughness: .06, metalness: .25 }),
       screen: material('#0f2a3a', { emissive: '#1b6f96', emissiveIntensity: .75, roughness: .3 }),
       cyan: material('#5fe3ff', { emissive: '#1d9fc4', emissiveIntensity: 1.1, roughness: .3 }),
@@ -83,7 +84,8 @@
     const box = (parent, size, position, matItem) => mesh(parent, geo.cube, matItem, size, position);
     const cyl = (parent, radius, height, position, matItem, axis) =>
       mesh(parent, geo.tube, matItem, [radius, height, radius], position, axis);
-    const ball = (parent, size, position, matItem) => mesh(parent, geo.sphere, matItem, size, position);
+    const ball = (parent, size, position, matItem) =>
+      mesh(parent, geo.sphere, matItem, Array.isArray(size) ? size : [size, size, size], position);
 
     const torus = (parent, radius, position, matItem, axis = 'y') => {
       const item = mesh(parent, geo.torus, matItem, [radius, radius, radius], position);
@@ -272,8 +274,12 @@
         torus(drive, .062, [0, 0, .45], M.steel, 'z');
         box(drive, [.2, .2, .1], [-.2, 0, -.04], M.machine);
         for (let i = 0; i < 4; i++) box(drive, [.03, .26, .012], [-.2, 0, -.09 - i * .03], M.dark);
-        conveyorParts.push(record('conveyor', '输送驱动电机', '0.75 kW · 1:25 减速', motor, [.62, .55, .62], 1));
-        conveyorParts.push(record('conveyor', '驱动单元与胀紧机构', '同步带传动', drive, [.22, .1, 1.15], 0));
+        // Only the two middle modules are registered, so the exploded view stays
+        // readable instead of spanning the whole 24 m line.
+        if (Math.abs(x + 2.15) < .01 || Math.abs(x - 2.05) < .01) {
+          conveyorParts.push(record('conveyor', '输送驱动电机', '0.75 kW · 1:25 减速', motor, [.62, .55, .62], 1));
+          conveyorParts.push(record('conveyor', '驱动单元与胀紧机构', '同步带传动', drive, [.22, .1, 1.15], 0));
+        }
       }
       return module;
     }
@@ -289,12 +295,13 @@
       { x: -11.35, width: 4.4, dev: feed, driven: true },
       { x: -6.67, width: 4.6, dev: feed, driven: true },
       { x: -2.15, width: 4.2, dev: fixtureDevice, driven: true },
-      { x: 2.05, width: 3.9, dev: visionDevice, driven: false },
+      { x: 2.05, width: 3.9, dev: visionDevice, driven: true },
       { x: 6.53, width: 4.6, dev: outputDevice, driven: true },
       { x: 11.35, width: 4.4, dev: outputDevice, driven: true }
     ];
     for (const bench of benches) conveyorModule(bench.dev, bench.x, bench.width, bench.driven);
-    for (const x of [-9.02, -4.42, -.06, 4.32, 8.92]) box(feed, [.06, .05, .9], [x, .63, BELT_Z], M.aluDark);
+    /* Module joints belong to no single device; keep them out of device bounds. */
+    for (const x of [-9.02, -4.42, -.06, 4.32, 8.92]) box(scene, [.06, .05, .9], [x, .63, BELT_Z], M.aluDark);
 
     /* ------------------------------------------------------------- robots */
 
@@ -628,7 +635,8 @@
     for (const x of [-.6, .6]) for (const z of [-.5, .5]) {
       const wheel = cyl(agv, .17, .09, [x, .17, z], M.rubber, 'z');
       cyl(agv, .08, .03, [x, .17, z + Math.sign(z) * .06], M.steel, 'z');
-      agvParts.push(record('agv', '驱动轮组', '双轮差速', wheel, [x * .5, -.02, z * .8], 1));
+      const corner = (x < 0 ? '左' : '右') + (z < 0 ? '前' : '后');
+      agvParts.push(record('agv', corner + '驱动轮组', '双轮差速 · Ø340', wheel, [x * .5, -.02, z * .8], 1));
     }
     box(agv, [1.3, .04, .03], [0, .46, .56], M.cyan);
     box(agv, [.5, .12, .1], [0, .46, -.56], M.dark);
@@ -642,35 +650,96 @@
 
     /* --------------------------------------------------------- environment */
 
-    for (const [x, z] of [[-13.4, -2.6], [13.2, -2.4]]) {
-      const rack = group(environmentOf(scene), x, 0, z);
-      for (const side of [-1, 1]) profile(rack, 2.6, .08, [side * .9, 1.3, 0], 'y');
-      for (const y of [.25, 1.1, 1.95, 2.55]) {
-        box(rack, [1.9, .05, .8], [0, y, 0], M.aluDark);
-        for (let i = 0; i < 3; i++) box(rack, [.5, .3, .55], [-.6 + i * .6, y + .18, 0], M.dark);
+    /* A factory hall around the cell: back wall with pilasters, roof girders,
+       an overhead crane, high-bay racking, neighbouring cells and floor clutter.
+       Everything here is background only — no parts, no picking. */
+    const hall = group(scene);
+
+    // Back wall with pilasters and a mezzanine band.
+    box(hall, [58, 8.6, .3], [2, 4.3, -15.4], M.machine);
+    for (const x of [-21, -14, -7, 0, 7, 14, 21]) {
+      box(hall, [.7, 8.6, .55], [x, 4.3, -15.1], M.aluDark);
+      box(hall, [.7, .12, .6], [x, 6.6, -15.05], M.steel);
+    }
+    box(hall, [58, .3, .6], [2, 6.9, -15.05], M.aluDark);
+
+    // Roof girders and luminaires.
+    for (const z of [-14.8, -8.6, -2.4]) {
+      box(hall, [58, .34, .34], [2, 7.95, z], M.aluDark);
+      for (let x = -22; x <= 26; x += 4) {
+        box(hall, [.12, .5, .12], [x, 7.6, z], M.steel);
       }
-      box(rack, [1.9, .04, .05], [0, 2.65, .38], M.yellow);
+    }
+    for (const x of [-16, -8, 0, 8, 16]) {
+      for (const z of [-12, -5.4]) {
+        box(hall, [2.2, .12, .5], [x, 7.62, z], M.screen);
+      }
     }
 
-    for (const [x, z, count] of [[-12.6, 1.8, 4], [12.4, 1.6, 3]]) {
-      for (let i = 0; i < count; i++) box(scene, [1.0, .09, .8], [x, .06 + i * .1, z], M.oak);
-      box(scene, [.95, .35, .7], [x, .12 + count * .1, z], M.dark);
-    }
-    for (const [x, z] of [[-10.2, 2.5], [-9.3, 2.5], [8.6, 2.6]]) {
-      box(scene, [.72, .32, .5], [x, .16, z], M.dark);
-      for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) {
-        box(scene, [.16, .12, .16], [x - .2 + i * .2, .3, z - .1 + j * .2], M.steel);
+    // Overhead crane: two rails, a bridge and a hoist.
+    for (const z of [-10.2, -4.4]) box(hall, [50, .26, .2], [0, 7.25, z], M.yellow);
+    const crane = group(hall, -5.5, 7.25, -7.3);
+    box(crane, [.6, .34, 5.9], [0, 0, 0], M.yellow);
+    box(crane, [1.1, .55, .9], [0, -.45, 0], M.dark);
+    cyl(crane, .035, 1.7, [0, -1.5, 0], M.steel);
+    box(crane, [.42, .34, .3], [0, -2.4, 0], M.dark);
+
+    // High-bay racking flanking the line.
+    for (const x of [-18.4, 18.4]) {
+      const rack = group(hall, x, 0, -4);
+      for (let level = 0; level < 4; level++) {
+        const y = .32 + level * 1.55;
+        box(rack, [1.5, .12, 17], [0, y, 0], M.aluDark);
+        for (let i = 0; i < 8; i++) {
+          const z = -7.2 + i * 2.05;
+          box(rack, [1.15, .85, 1.3], [0, y + .48, z], level % 2 ? M.oak : M.dark);
+          if (level % 2 === 0) box(rack, [1.2, .06, 1.35], [0, y + .94, z], M.steel);
+        }
       }
+      for (const side of [-1, 1]) {
+        for (let i = 0; i < 5; i++) profile(rack, 6.4, .13, [side * .62, 3.2, -8.2 + i * 4.1], 'y', M.steel);
+      }
+      box(rack, [1.6, .1, 17], [0, 6.5, 0], M.yellow);
     }
+
+    // Neighbouring production cells behind the line.
     for (const x of [-15, -9, -3, 3, 9, 15]) {
-      const cell = group(scene, x, 0, -10.5);
-      box(cell, [2.3, 1.4, 1.2], [0, .7, 0], M.dark);
-      box(cell, [1.2, .5, .06], [0, 1.55, .5], M.screen);
-      box(cell, [2.2, .06, 1.1], [0, 1.5, 0], M.aluDark);
+      const cell = group(hall, x, 0, -11.6);
+      box(cell, [2.7, 1.5, 1.5], [0, .75, 0], M.dark);
+      box(cell, [2.6, .1, 1.4], [0, 1.55, 0], M.aluDark);
+      box(cell, [1.4, .55, .06], [0, 1.65, .66], M.screen);
+      for (const side of [-1, 1]) profile(cell, 3.1, .1, [side * 1.25, 1.55, 0], 'y', M.steel);
+      profile(cell, 2.5, .1, [0, 3.1, 0], 'x', M.steel);
+      box(cell, [.8, .1, .06], [0, 2.9, .1], M.cyan);
     }
 
-    function environmentOf(parent) {
-      return parent;
+    // Pallet stacks, bins and a pair of operator desks along the aisle.
+    for (const [x, z, count] of [[-13.6, 2.4, 4], [13.4, 2.2, 3], [10.4, 4.6, 5]]) {
+      for (let i = 0; i < count; i++) box(hall, [1.0, .09, .8], [x, .06 + i * .1, z], M.oak);
+      box(hall, [.95, .38, .72], [x, .12 + count * .1, z], M.dark);
+    }
+    for (const [x, z] of [[-10.9, 3.4], [-10.1, 3.4], [-9.3, 3.4], [8.9, 3.3], [9.7, 3.3]]) {
+      box(hall, [.72, .3, .5], [x, .15, z], M.dark);
+      for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) {
+        box(hall, [.17, .12, .17], [x - .16 + i * .32, .3, z - .1 + j * .2], M.steel);
+      }
+    }
+    for (const x of [-12.6, 12.6]) {
+      const desk = group(hall, x, 0, 4.4);
+      box(desk, [1.35, .07, .72], [0, .78, 0], M.machine);
+      box(desk, [1.28, .58, .64], [0, .48, 0], M.dark);
+      box(desk, [.62, .4, .05], [0, 1.06, -.32], M.screen);
+      for (const dx of [-.52, .52]) box(desk, [.07, .78, .52], [dx, .39, 0], M.aluDark);
+      cyl(desk, .028, .5, [.46, 1.05, .18], M.steel);
+    }
+
+    // Guard rails marking the AGV aisle.
+    for (const z of [6.6, -5.8]) {
+      for (let x = -14; x <= 14; x += 2.8) {
+        cyl(hall, .04, .82, [x, .41, z], M.rail);
+        box(hall, [.08, .08, .36], [x, .82, z], M.rail);
+      }
+      for (let x = -14; x <= 14; x += 2.8) box(hall, [2.8, .06, .06], [x + 1.4, .76, z], M.rail);
     }
 
     /* ------------------------------------------------------------ products */
@@ -726,6 +795,40 @@
     geometries.add(halo.geometry);
     materials.add(halo.material);
 
+    function describeBoxes() {
+      const report = {};
+      for (const [id, info] of Object.entries(devices)) {
+        const box = new THREE.Box3().setFromObject(info.group);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const bad = [];
+        info.group.traverse(object => {
+          if (!object.isMesh || !object.geometry) return;
+          const position = object.geometry.getAttribute('position');
+          if (!position) { bad.push('no-position'); return; }
+          const array = position.array;
+          for (let i = 0; i < array.length; i++) {
+            if (!Number.isFinite(array[i])) { bad.push(object.geometry.type + ':geometry-NaN'); return; }
+          }
+          for (const value of object.position.toArray()) if (!Number.isFinite(value)) { bad.push(object.geometry.type + ':position-NaN'); return; }
+          for (const value of object.scale.toArray()) if (!Number.isFinite(value)) { bad.push(object.geometry.type + ':scale-NaN'); return; }
+          for (const value of object.matrixWorld.elements) if (!Number.isFinite(value)) {
+            bad.push(object.geometry.type + ':matrix-NaN scale=' + object.scale.toArray().join(',') +
+              ' pos=' + object.position.toArray().join(','));
+            return;
+          }
+        });
+        report[id] = {
+          min: box.min.toArray().map(v => Number.isFinite(v) ? Math.round(v * 100) / 100 : String(v)),
+          max: box.max.toArray().map(v => Number.isFinite(v) ? Math.round(v * 100) / 100 : String(v)),
+          size: size.toArray().map(v => Number.isFinite(v) ? Math.round(v * 100) / 100 : String(v)),
+          meshes: (() => { let n = 0; info.group.traverse(o => { if (o.isMesh) n++; }); return n; })(),
+          bad: bad.slice(0, 6)
+        };
+      }
+      return report;
+    }
+
     function update(time) {
       if (!halo.visible) return;
       const pulse = 1 + Math.sin(time * 2.2) * .035;
@@ -744,6 +847,7 @@
       conveyorParts, armParts, fixtureParts, feedParts, visionParts, agvParts,
       pallet, base, insert, productA, productB, insertA, insertB, scan,
       door: doorPivot, stackLights, selection, halo, materials: M, jaws,
+      describeBoxes,
       beltZ: BELT_Z, beltTop: BELT_TOP, palletY: PALLET_Y,
       feedX: FEED_X, visionX: VISION_X, outX: OUT_X,
       update, dispose

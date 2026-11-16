@@ -181,9 +181,10 @@
     function fitDistance(box, padding = 1.25, tall = true) {
       box.getSize(tempVector);
       const size = Math.max(tempVector.x, tempVector.y * (tall ? 1.4 : 1), tempVector.z);
+      if (!Number.isFinite(size) || size <= 0) return NaN;
       const vertical = size / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
       const horizontal = vertical / Math.max(.55, camera.aspect);
-      return Math.max(1.8, Math.min(46, Math.max(vertical, horizontal) * padding));
+      return Math.max(1.2, Math.min(46, Math.max(vertical, horizontal) * padding));
     }
 
     function home(immediate = false) {
@@ -203,6 +204,16 @@
       overview = false;
       box.getCenter(desiredTarget);
       const distance = fitDistance(box, padding, tall);
+      if (!Number.isFinite(desiredTarget.x) || !Number.isFinite(desiredTarget.y) ||
+          !Number.isFinite(desiredTarget.z) || !Number.isFinite(distance) || distance <= 0) {
+        // A degenerate bounding box must never poison the camera.
+        overview = true;
+        desiredTarget.copy(homeTarget);
+        desiredPosition.copy(homeDirection).multiplyScalar(homeDistance).add(desiredTarget);
+        focusMoving = !immediate;
+        draw = true;
+        return;
+      }
       const dir = direction || homeDirection;
       desiredPosition.copy(dir).normalize().multiplyScalar(distance).add(desiredTarget);
       focusMoving = !immediate;
@@ -533,15 +544,40 @@
 
     function refreshExplodeOffsets() {
       model.scene.updateMatrixWorld(true);
+      const roots = new Set(parts.map(part => part.object));
+      // The end effector is only a few centimetres across, so its parts are laid
+      // out in a world-space row (like a parts tray) instead of radially.
+      const toolStack = sub.tool || [];
+      const toolDirection = new THREE.Vector3(.86, .3, .42).normalize();
+      toolStack.forEach((part, index) => {
+        const parent = part.object.parent;
+        if (!parent) return;
+        const worldHome = parent.localToWorld(part.home.clone());
+        const target = worldHome.clone().addScaledVector(toolDirection, .1 + index * .17);
+        part.localOffset = parent.worldToLocal(target).sub(part.home);
+        part.offset.copy(toolDirection);
+      });
       for (const part of parts) {
+        if (part.sub === 'tool') continue;
         const parent = part.object.parent;
         if (!parent) { part.localOffset = part.offset.clone(); continue; }
+        // A part nested inside another part (motor inside drive unit) travels with
+        // its parent, so it only needs a small extra gap to stay readable.
+        let ancestor = parent;
+        let nested = false;
+        while (ancestor && ancestor !== model.scene) {
+          if (roots.has(ancestor)) { nested = true; break; }
+          ancestor = ancestor.parent;
+        }
         const direction = part.offset.clone();
         if (direction.lengthSq() < 1e-4) direction.set(0, 1, 0);
         direction.normalize();
         direction.y = Math.max(direction.y, .14);
         direction.normalize();
-        const distance = THREE.MathUtils.clamp(.52 + (part.radius || .2) * .5, .5, 1.25);
+        const distance = nested
+          ? .3
+          : THREE.MathUtils.clamp(.52 + (part.radius || .2) * .5, .5, 1.25) *
+            (part.sub === 'tool' ? .45 : 1);
         const worldHome = parent.localToWorld(part.home.clone());
         const worldTarget = worldHome.clone().addScaledVector(direction, distance);
         part.localOffset = parent.worldToLocal(worldTarget).sub(part.home);
@@ -552,6 +588,8 @@
     computeSubMeta();
 
     let selectedDevice = 'feed';
+    let lastExplodeSize = new THREE.Vector3();
+    let pendingExplodeFrame = false;
     let explodeSub = null;
     let explodeValue = 0;
     let explodeTarget = 0;
@@ -642,20 +680,24 @@
       if (!deviceById[id]) return;
       selectedDevice = id;
       chooseDevice(refs.deviceButtons, onSelect, id);
-      model.selection.visible = Boolean(id) && !explodeSub;
-      if (id) model.selection.setFromObject(model.devices[id].group);
-      model.halo.visible = true;
       const info = model.devices[id];
       const box = new THREE.Box3().setFromObject(info.group);
       const center = new THREE.Vector3();
       const size = new THREE.Vector3();
       box.getCenter(center);
       box.getSize(size);
-      model.halo.position.set(center.x, .014, center.z);
-      model.halo.userData.radius = THREE.MathUtils.clamp(Math.min(size.x, size.z) * .55, 1.1, 2.3);
+      const measurable = !box.isEmpty() && Number.isFinite(center.x) && Number.isFinite(center.z) &&
+        Number.isFinite(size.x) && Number.isFinite(size.z);
+      model.selection.visible = measurable && !explodeSub;
+      if (model.selection.visible) model.selection.setFromObject(info.group);
+      model.halo.visible = measurable;
+      if (measurable) {
+        model.halo.position.set(center.x, .014, center.z);
+        model.halo.userData.radius = THREE.MathUtils.clamp(Math.min(size.x, size.z) * .55, 1.1, 2.3);
+      }
       refs.selection.hidden = false;
       refs.selection.innerHTML = '<b>' + (deviceById[id]?.name || '') + '</b><span>' + (announcement || deviceById[id]?.index || '') + '</span>';
-      if (moveCamera) {
+      if (moveCamera && measurable) {
         viewer.controls.autoRotate = false;
         viewer.frameBox(box, { padding: 1.15 });
       }
@@ -702,28 +744,13 @@
       refreshExplodeOffsets();
       if (group?.device) select(group.device, false);
       setIsolation(group?.device || 'all');
+      setPartVisibility(groupId === 'tool' ? activeSources.tool : null);
       renderPartList();
       refs.parts.hidden = false;
       simulationMessage = '拆解 · ' + (group?.label || '设备');
-      // Frame just the exploded assembly so the parts actually fill the view.
-      const source = activeSources[groupId] || [];
-      if (source.length) {
-        const box = new THREE.Box3();
-        for (const part of source) {
-          const anchor = part.home.clone().add(part.localOffset || part.offset);
-          part.object.parent.localToWorld(anchor);
-          const reach = Math.max(part.radius || .25, .12);
-          box.expandByPoint(anchor.clone().addScalar(reach));
-          box.expandByPoint(anchor.clone().subScalar(reach));
-        }
-        if (group?.device && groupId !== 'all') {
-          box.setFromObject(model.devices[group.device].group).union(box);
-        }
-        const size = box.getSize(new THREE.Vector3());
-        box.expandByScalar(Math.max(.2, size.length() * .05));
-        viewer.controls.autoRotate = false;
-        viewer.frameBox(box, { padding: 1.16, tall: true, direction: new THREE.Vector3(5.6, 4.4, 10.5) });
-      }
+      // Framing happens once the parts have actually settled (see the update loop);
+      // predicting the bounding box from offsets proved unreliable.
+      pendingExplodeFrame = true;
       syncControls();
     }
 
@@ -944,8 +971,24 @@
         }
       }
 
-      const glass = model.materials.glass;
-      const glassTarget = explodeTarget > .05 ? .028 : .06;
+      // Reframe once the parts have finished travelling, using their real bounds.
+      if (pendingExplodeFrame) {
+        const active = explodeSub ? activeSources[explodeSub] : null;
+        if (!active) {
+          pendingExplodeFrame = false;
+        } else if (active.every(part => Math.abs(part.amount - 1) < .06)) {
+          model.scene.updateMatrixWorld(true);
+          const box = new THREE.Box3();
+          for (const part of active) box.expandByObject(part.object);
+          if (!box.isEmpty()) {
+            lastExplodeSize = box.getSize(new THREE.Vector3());
+            viewer.frameBox(box, { padding: 1.15, tall: true, direction: new THREE.Vector3(5.6, 4.4, 10.5) });
+          }
+          pendingExplodeFrame = false;
+        }
+      }
+
+      const glass = model.materials.glass;      const glassTarget = explodeTarget > .05 ? .028 : .06;
       if (Math.abs(glass.opacity - glassTarget) > .002) {
         glass.opacity += (glassTarget - glass.opacity) * Math.min(1, blend * 1.4);
         changed = true;
@@ -1042,6 +1085,8 @@
           explode: explodeTarget,
           explodeSub,
           ...viewer.debug(),
+          boxes: model.describeBoxes(),
+          explodeSize: lastExplodeSize.toArray().map(value => Math.round(value * 100) / 100),
           amounts: parts.filter(part => part.amount > .01).length
         };
       },
