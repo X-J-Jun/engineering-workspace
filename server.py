@@ -223,7 +223,7 @@ class WorkspaceHandler(BaseHTTPRequestHandler):
             return
         if self.path in ("/", "/index.html"):
             self.reply(200, PAGE.read_bytes(), "text/html; charset=utf-8")
-        elif self.path in ("/robot-workstation.js", "/robot-workstation.css",
+        elif self.path in ("/robot-model.js", "/robot-workstation.js", "/robot-workstation.css",
                            "/robot-integration.js", "/robot-integration.css",
                            "/robot-line-preview.webp"):
             resource = PAGE.with_name(self.path[1:])

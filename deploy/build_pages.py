@@ -23,6 +23,7 @@ html = html.replace(entry, f"<script>window.workspaceCloudConfig = {config};\n{a
 output = ROOT / "_site"
 output.mkdir(exist_ok=True)
 assets = (
+    "robot-model.js",
     "robot-workstation.js",
     "robot-workstation.css",
     "robot-integration.js",
