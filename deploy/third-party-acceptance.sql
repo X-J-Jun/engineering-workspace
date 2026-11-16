@@ -1,3 +1,65 @@
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('delivery-materials','delivery-materials',false,10485760,array['application/pdf','image/png','image/jpeg','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','application/vnd.openxmlformats-officedocument.presentationml.presentation','application/zip'])
+on conflict (id) do nothing;
+
+create or replace function workspace_private.can_access_delivery_file(object_name text, uploading boolean)
+returns boolean language plpgsql stable security definer set search_path = '' as $$
+declare
+  uid uuid := auth.uid();
+  member_role text;
+  email text;
+  task jsonb;
+  segments text[] := string_to_array(object_name, '/');
+  file_ref jsonb := jsonb_build_array(jsonb_build_object('path',object_name));
+begin
+  if uid is null or cardinality(segments) <> 3
+    or segments[3] !~ '^[0-9a-f-]{36}$' then return false; end if;
+  select m.role, lower(u.email) into member_role, email
+  from workspace_private.members m join auth.users u on u.id=m.user_id where m.user_id=uid;
+  if member_role is null or email is null or member_role='viewer' then return false; end if;
+  select t.value into task from workspace_private.state s
+  cross join lateral jsonb_array_elements(s.document->'tasks') t
+  where s.singleton and t.value->>'level'='2'
+    and encode(convert_to(t.value->>'id','UTF8'),'hex')=segments[2];
+  if task is null then return false; end if;
+
+  if uploading then
+    return segments[1]=uid::text and (member_role='owner'
+        or (member_role='submitter' and lower(task->>'owner')=email))
+      and coalesce(task->>'acceptanceStatus','not_ready') not in ('pending','accepted')
+      and coalesce(task->>'requiresAcceptance',case when coalesce(task->>'acceptanceCriteria','') <> ''
+        or coalesce(task->>'acceptanceGap','') <> '' or task->>'acceptanceStatus'='returned' then 'true' else 'false' end)='true';
+  end if;
+
+  if not (member_role in ('owner','manager','reviewer')
+    or (member_role='submitter' and lower(task->>'owner')=email)) then return false; end if;
+  return exists (
+    select 1 from (
+      select task->'acceptanceSubmission' as submission, task->'internalReview' as internal_review,
+        task->'officialReview' as official_review
+      union all
+      select entry->'submission', entry->'internalReview', entry->'officialReview'
+      from jsonb_array_elements(coalesce(task->'deliveryHistory','[]'::jsonb)) entry
+    ) delivery
+    where delivery.submission->'files' @> file_ref
+    and (member_role<>'reviewer' or (
+      lower(coalesce(task->>'owner',''))<>email and lower(coalesce(delivery.submission->>'submittedBy',''))<>email
+      and (delivery.internal_review->>'verdict'='accepted' or delivery.official_review->>'reviewer'=email)
+    ))
+  );
+end;
+$$;
+revoke all on function workspace_private.can_access_delivery_file(text,boolean) from public, anon, authenticated;
+grant execute on function workspace_private.can_access_delivery_file(text,boolean) to authenticated;
+
+drop policy if exists workspace_delivery_file_insert on storage.objects;
+create policy workspace_delivery_file_insert on storage.objects for insert to authenticated
+  with check (bucket_id='delivery-materials' and workspace_private.can_access_delivery_file(name,true));
+
+drop policy if exists workspace_delivery_file_read on storage.objects;
+create policy workspace_delivery_file_read on storage.objects for select to authenticated
+  using (bucket_id='delivery-materials' and workspace_private.can_access_delivery_file(name,false));
+
 create or replace function workspace_private.review_records_unchanged(old_doc jsonb, new_doc jsonb)
 returns boolean language sql set search_path = '' as $$
   select not exists (
@@ -166,6 +228,7 @@ declare
   verdict text;
   material_summary text;
   material_links jsonb;
+  material_files jsonb;
   delivery_history jsonb;
   version_number int;
 begin
@@ -261,6 +324,25 @@ begin
               or link#>>'{}' !~* '^https://[^/?#@[:space:]]+([/?#][^[:space:]]*)?$'
               or position(chr(92) in link#>>'{}') > 0
           ) then return jsonb_build_object('status',400,'error','invalid_material_links'); end if;
+          material_files := coalesce(payload->'files','[]'::jsonb);
+          if jsonb_typeof(material_files) <> 'array' then
+            return jsonb_build_object('status',400,'error','invalid_material_files');
+          end if;
+          if jsonb_array_length(material_files)>5 or exists (
+            select 1 from jsonb_array_elements(material_files) f
+            where jsonb_typeof(f->'path') is distinct from 'string'
+              or jsonb_typeof(f->'name') is distinct from 'string'
+              or char_length(f->>'name') not between 1 and 180
+              or (f->>'name') ~ '[[:cntrl:]/]' or position(chr(92) in f->>'name')>0
+              or split_part(f->>'path','/',2)<>encode(convert_to(task->>'id','UTF8'),'hex')
+              or workspace_private.can_access_delivery_file(f->>'path',true) is not true
+              or not exists (select 1 from storage.objects o where o.bucket_id='delivery-materials'
+                and o.name=f->>'path' and o.owner_id=uid::text)
+          ) or exists (
+            select 1 from jsonb_array_elements(material_files) f group by f->>'path' having count(*)>1
+          ) then return jsonb_build_object('status',400,'error','invalid_material_files'); end if;
+          select coalesce(jsonb_agg(jsonb_build_object('path',f->>'path','name',f->>'name')),'[]'::jsonb)
+          into material_files from jsonb_array_elements(material_files) f;
           if member_role = 'owner' then
             if (payload ? 'criteria' and (jsonb_typeof(payload->'criteria') is distinct from 'string'
                 or char_length(payload->>'criteria') > 4000))
@@ -282,7 +364,7 @@ begin
           task := (task - array['internalReview','officialReview','acceptanceReturnReason']) ||
             jsonb_build_object('deliveryHistory',delivery_history,'status','done','requiresAcceptance',true,
             'acceptanceStatus','pending','submittedBy',email,'reviewedBy','',
-            'acceptanceSubmission',jsonb_build_object('summary',material_summary,'links',material_links,
+            'acceptanceSubmission',jsonb_build_object('summary',material_summary,'links',material_links,'files',material_files,
               'submittedBy',email,'submittedAt',now(),'version',version_number,
               'criteria',coalesce(task->>'acceptanceCriteria','')));
         else return jsonb_build_object('status',403,'error','forbidden');
@@ -342,7 +424,7 @@ begin
   else
     return jsonb_build_object('status',404,'error','not_found');
   end if;
-  return jsonb_build_object('role',member_role,'actor',email,'acceptanceMode','third_party','acceptanceFlow','materials',
+  return jsonb_build_object('role',member_role,'actor',email,'acceptanceMode','third_party','acceptanceFlow','materials','deliveryFiles',true,
     'state',workspace_private.scoped_document(doc,email,member_role) || jsonb_build_object('revision',current_revision));
 end;
 $$;

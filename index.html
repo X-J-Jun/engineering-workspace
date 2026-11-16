@@ -1788,6 +1788,12 @@
         <div class="field"><label for="acceptanceMaterialSummary">材料说明</label>
           <textarea id="acceptanceMaterialSummary" maxlength="4000" placeholder="说明已完成的工作、交付物，以及如何核对验收条件"></textarea>
         </div>
+        <div class="field" id="deliveryFilePicker" hidden>
+          <label for="deliveryFilesInput">从电脑选择或拖入附件</label>
+          <input id="deliveryFilesInput" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.pptx,.zip">
+          <p class="muted">最多 5 个文件，每个不超过 10 MB。支持 PDF、图片、Office 文档和 ZIP。</p>
+          <ul id="deliveryFilesSelected" aria-live="polite"></ul>
+        </div>
         <div class="field"><label for="acceptanceMaterialLinks">附件链接（选填，每行一个 HTTPS 链接）</label>
           <textarea id="acceptanceMaterialLinks" maxlength="6000" placeholder="粘贴第三方验收员可打开的报告、照片或演示链接"></textarea>
         </div>
@@ -1863,6 +1869,13 @@
       <p id="memberRequestsStatus" role="status"></p>
       <ul id="memberRequestList"></ul>
     </section>
+    <details><summary>角色分工</summary><ul>
+      <li>所有者负责管理成员和角色、分配工作和内部审批，也可以代为提交材料。</li>
+      <li>项目管理员负责项目、任务分配和验收条件，可查看及下载已提交的文件。</li>
+      <li>提交者负责本人工作包，可提交、补交并下载该工作包的材料。</li>
+      <li>第三方验收员负责内部通过后的验收，可下载验收范围内的材料。</li>
+      <li>只读成员可以查看进度及验收状态。</li>
+    </ul></details>
     <ul id="memberList"></ul>
     <form id="memberForm">
       <div class="field"><label for="memberName">账号</label><input id="memberName" required maxlength="80"></div>
@@ -1992,6 +2005,7 @@ let sharedActor = '';
 let sharedRole = '';
 let thirdPartyAcceptance = false;
 let materialsSubmission = false;
+let deliveryFilesEnabled = false;
 const ROLE_NAMES = {owner: '所有者', manager: '项目管理员', submitter: '提交者', reviewer: '审批者', viewer: '只读成员'};
 
 function canManage() {
@@ -2229,7 +2243,8 @@ function setSyncStatus(mode, label, title = '') {
   syncStatus.title = title || label;
 }
 
-function acceptSharedState({state, actor, role, acceptanceMode, acceptanceFlow}) {
+function acceptSharedState({state, actor, role, acceptanceMode, acceptanceFlow, deliveryFiles}) {
+  deliveryFilesEnabled = Boolean(cloud && deliveryFiles);
   materialsSubmission = acceptanceFlow === 'materials';
   thirdPartyAcceptance = acceptanceMode === 'third_party';
   ROLE_NAMES.reviewer = thirdPartyAcceptance ? '第三方验收员' : '审批者';
@@ -2286,6 +2301,7 @@ async function sendTaskAction(task, action, fields = {}) {
       const result = await response.json();
       const errors = {
         materials_required: '请填写材料说明。',
+        invalid_material_files: '附件未通过校验，请重新选择并上传。',
         invalid_material_links: '请检查附件链接是否为有效的 HTTPS 地址。',
         invalid_acceptance_criteria: '验收条件或缺失证据说明过长。',
         internal_approval_required: '该版本须先由所有者内部通过。',
@@ -3014,6 +3030,136 @@ function appendMaterialLinks(list, values) {
   }
 }
 
+const deliveryPicker = document.querySelector('#deliveryFilePicker');
+const deliveryInput = document.querySelector('#deliveryFilesInput');
+const deliveryFileList = document.querySelector('#deliveryFilesSelected');
+const deliveryTypes = {
+  pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  zip: 'application/zip'
+};
+let selectedDeliveryFiles = [];
+let deliverySubmitting = false;
+
+function listDeliveryFiles() {
+  deliveryFileList.replaceChildren();
+  selectedDeliveryFiles.forEach((entry, index) => {
+    const row = document.createElement('li');
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'small secondary';
+    remove.textContent = '移除';
+    remove.setAttribute('aria-label', '移除 ' + entry.file.name);
+    remove.addEventListener('click', () => {
+      if (deliverySubmitting) return;
+      selectedDeliveryFiles.splice(index, 1);
+      listDeliveryFiles();
+    });
+    row.append(entry.file.name + ' ', remove);
+    deliveryFileList.append(row);
+  });
+}
+
+function selectDeliveryFiles(files) {
+  if (deliverySubmitting || deliveryPicker.hidden) return;
+  const entries = [...files].map(file => {
+    const extension = file.name.split('.').at(-1).toLowerCase();
+    return {file, type: Object.hasOwn(deliveryTypes, extension) ? deliveryTypes[extension] : ''};
+  });
+  if (selectedDeliveryFiles.length + entries.length > 5 || entries.some(({file,type}) =>
+    !type || !file.size || file.size > 10 * 1024 * 1024 || [...file.name].length > 180 ||
+    /[\x00-\x1f\x7f]/.test(file.name))) {
+    acceptanceError.textContent = '请选择支持的文件格式，最多 5 个，每个不超过 10 MB，文件名最多 180 个字符。';
+    return;
+  }
+  acceptanceError.textContent = '';
+  selectedDeliveryFiles.push(...entries);
+  listDeliveryFiles();
+}
+
+deliveryInput.addEventListener('change', () => {
+  selectDeliveryFiles(deliveryInput.files);
+  deliveryInput.value = '';
+});
+deliveryPicker.addEventListener('dragover', event => event.preventDefault());
+deliveryPicker.addEventListener('drop', event => {
+  event.preventDefault();
+  selectDeliveryFiles(event.dataTransfer.files);
+});
+acceptanceDialog.addEventListener('cancel', event => {
+  if (deliverySubmitting) event.preventDefault();
+});
+
+function appendDeliveryFiles(list, task, submission, internalReview, officialReview) {
+  const files = submission?.files;
+  if (!deliveryFilesEnabled || sharedRole === 'viewer' || !Array.isArray(files)) return;
+  if (sharedRole === 'reviewer' && (assignedTo(task, sharedActor) ||
+      submission.submittedBy.toLowerCase() === sharedActor.toLowerCase() ||
+      (internalReview?.verdict !== 'accepted' && officialReview?.reviewer !== sharedActor))) return;
+  for (const file of files) {
+    if (!file || typeof file.name !== 'string' || typeof file.path !== 'string' ||
+        !/^[0-9a-f-]+\/[0-9a-f]+\/[0-9a-f-]{36}$/.test(file.path)) continue;
+    const row = document.createElement('li');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'small secondary';
+    button.textContent = '下载 ' + file.name;
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      try {
+        const response = await cloud.deliveryFile(file.path);
+        if (!response.ok) throw new Error();
+        const href = URL.createObjectURL(await response.blob());
+        const link = document.createElement('a');
+        link.href = href;
+        link.download = file.name;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(href), 30000);
+      } catch {
+        acceptanceError.textContent = '无法下载附件，请检查当前账号权限或网络连接。';
+      } finally {
+        button.disabled = false;
+      }
+    });
+    row.append(button);
+    list.append(row);
+  }
+}
+
+async function submitDeliveryFiles(task, fields) {
+  const actor = sharedActor;
+  deliverySubmitting = true;
+  const buttons = [...acceptanceDialog.querySelectorAll('button')].filter(button => !button.disabled);
+  buttons.forEach(button => { button.disabled = true; });
+  deliveryInput.disabled = true;
+  try {
+    fields.files = [];
+    for (const entry of selectedDeliveryFiles) {
+      if (actor !== sharedActor) throw new Error('当前账号已改变，请重新打开交付单。');
+      if (!entry.path) {
+        acceptanceError.textContent = '正在上传 ' + entry.file.name + '…';
+        const path = cloud.deliveryFilePath(task.id);
+        const response = await cloud.deliveryFile(path, entry.file, entry.type);
+        if (!response.ok) throw new Error('上传失败，请检查文件和网络后重试。');
+        entry.path = path;
+      }
+      fields.files.push({path: entry.path, name: entry.file.name});
+    }
+    if (actor !== sharedActor) return false;
+    acceptanceError.textContent = '';
+    return await sendTaskAction(task, 'submit', fields);
+  } catch (error) {
+    acceptanceError.textContent = error.message;
+    return false;
+  } finally {
+    deliverySubmitting = false;
+    deliveryInput.disabled = false;
+    buttons.forEach(button => { button.disabled = false; });
+  }
+}
+
 function renderDeliveryHistory(task) {
   const list = document.querySelector('#deliveryHistoryList');
   list.replaceChildren();
@@ -3036,6 +3182,7 @@ function renderDeliveryHistory(task) {
     record.textContent = lines.join('\n');
     const links = document.createElement('ul');
     appendMaterialLinks(links, submission.links);
+    appendDeliveryFiles(links, task, submission, entry.internalReview, entry.officialReview);
     details.append(record, links);
     list.append(details);
   });
@@ -3048,15 +3195,20 @@ function renderAcceptanceMaterials(task, editable) {
   acceptanceMaterialSummary.value = draft.summary ?? submission?.summary ?? '';
   acceptanceMaterialLinks.value = draft.links ?? submission?.links.join('\n') ?? '';
   saveDeliveryDraft.hidden = !editable;
+  deliveryPicker.hidden = !editable || !deliveryFilesEnabled;
+  selectedDeliveryFiles = [];
+  deliveryInput.value = '';
+  listDeliveryFiles();
   renderDeliveryHistory(task);
   const record = document.querySelector('#acceptanceSubmittedMaterials');
-  record.hidden = !submission || editable;
+  record.hidden = !submission;
   document.querySelector('#acceptanceSubmittedSummary').textContent = submission?.summary || '';
   document.querySelector('#acceptanceSubmittedBy').textContent = submission ?
     `${submission.submittedBy} · ${submission.submittedAt.slice(0, 10)}` : '';
   const links = document.querySelector('#acceptanceSubmittedLinks');
   links.replaceChildren();
   appendMaterialLinks(links, submission?.links || []);
+  appendDeliveryFiles(links, task, submission, task.internalReview, task.officialReview);
 }
 
 function validExternalReview(review) {
@@ -3761,6 +3913,7 @@ blockerSettingsForm.addEventListener('submit', event => {
 
 acceptanceForm.addEventListener('submit', async event => {
   event.preventDefault();
+  if (deliverySubmitting) return;
   const task = currentTasks().find(item => item.id === acceptanceTaskId.value);
   if (!task?.requiresAcceptance) return;
   const action = event.submitter?.value;
@@ -3801,7 +3954,9 @@ acceptanceForm.addEventListener('submit', async event => {
         return;
       }
     }
-    if (await sendTaskAction(task, action, fields)) {
+    const saved = action === 'submit' && selectedDeliveryFiles.length
+      ? await submitDeliveryFiles(task, fields) : await sendTaskAction(task, action, fields);
+    if (saved) {
       if (action === 'submit') {
         try { sessionStorage.removeItem(materialDraftKey(task)); } catch {}
       }

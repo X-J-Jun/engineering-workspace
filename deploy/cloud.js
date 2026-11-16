@@ -152,6 +152,20 @@
       remember(null);
       if (accessToken) await revoke(accessToken);
     },
+    async deliveryFile(path, file, type) {
+      const accessToken = await token();
+      if (!accessToken) return new Response(null, {status: 401});
+      const object = path.split('/').map(encodeURIComponent).join('/');
+      const endpoint = '/storage/v1/object/' + (file ? '' : 'authenticated/') + 'delivery-materials/' + object;
+      const headers = {apikey: key, Authorization: 'Bearer ' + accessToken};
+      if (file) headers['Content-Type'] = type;
+      return fetch(url + endpoint, {method: file ? 'POST' : 'GET', headers, body: file, cache: 'no-store'});
+    },
+    deliveryFilePath(taskId) {
+      const encoded = Array.from(new TextEncoder().encode(taskId), b => b.toString(16).padStart(2, '0')).join('');
+      if (!session?.user?.id) throw new Error('登录已过期，请重新登录。');
+      return [session.user.id, encoded, crypto.randomUUID()].join('/');
+    },
     async request(path, options = {}) {
       const accessToken = await token();
       if (!accessToken) return new Response(null, {status: 401});
