@@ -9,15 +9,23 @@
   document.querySelector('a[href="#riskHeading"]').after(nav);
 
   const section = document.createElement('section');
+  section.className = 'robot-workspace';
   section.setAttribute('aria-labelledby', 'robotHeading');
   section.hidden = true;
   section.innerHTML = `
-    <div class="robot-page-heading"><div><h2 id="robotHeading">柔性装配工作站</h2>
-    <p>方案示意 · 装配过程和设备状态均为模拟演示</p></div>
-    <button type="button" class="secondary" data-robot-action="targets">编辑项目目标</button></div>
-    <div id="robotTargets" class="robot-targets"></div>
+    <div class="robot-page-heading">
+      <h2 id="robotHeading">柔性装配工作站</h2>
+      <span>产线模拟</span>
+    </div>
     <div id="robotScene" class="robot-scene"></div>
-    <div id="robotDetails" class="robot-details" aria-live="polite"></div>`;
+    <div id="robotInfo" class="robot-info">
+      <div id="robotDetails" class="robot-details"></div>
+      <details class="robot-targets">
+        <summary>项目目标</summary>
+        <div id="robotTargets"></div>
+        <button type="button" class="small secondary" data-robot-action="targets">编辑项目目标</button>
+      </details>
+    </div>`;
   document.querySelector('section[aria-labelledby="riskHeading"]').before(section);
 
   const dialog = document.createElement('dialog');
@@ -29,12 +37,13 @@
   </form>`;
   document.body.append(dialog);
 
-  let selected = 'robot';
+  let selected = 'feed';
   let scene = null;
   let pending = null;
-  let sceneGeneration = 0;
   const sceneHost = document.querySelector('#robotScene');
   const details = document.querySelector('#robotDetails');
+  const info = document.querySelector('#robotInfo');
+  const targetEdit = info.querySelector('[data-robot-action="targets"]');
   const targets = document.querySelector('#robotTargets');
   const enabled = () => Boolean(getCurrentProject()?.robotWorkspace?.enabled);
   const manager = () => canManage();
@@ -77,22 +86,31 @@
   }
   function refresh() {
     nav.hidden = !enabled();
-    section.querySelector('[data-robot-action="targets"]').hidden = !manager();
+    targetEdit.hidden = !manager();
     setupButtons();
     if (!enabled()) {
-      if (location.hash === '#robotHeading') location.hash = '#overviewHeading';
+      if ((!sharedMode || sharedRole) && location.hash === '#robotHeading') location.hash = '#overviewHeading';
       scene?.setVisible(false);
       return;
     }
     const target = getCurrentProject().robotWorkspace.targets || {};
-    const display = (key, suffix) => target[key] == null ? '待填写' : `${target[key]} ${suffix}`;
-    targets.innerHTML = `<p>项目目标 · 数据来源 ${escapeHTML(target.sourceDate || '待填写')} · 待核对</p>
-      <div class="robot-target-grid">
-      <span>周期 <strong>${display('durationWeeks','周')}</strong></span>
-      <span>预算 <strong>${display('budgetCny','元')}</strong></span>
-      <span>单件节拍 ≤ <strong>${display('cycleSeconds','秒')}</strong></span>
-      <span>重复定位精度 ≤ <strong>${display('positionMm','mm')}</strong></span>
-      <span>安全互锁通过率 <strong>${display('interlockPercent','%')}</strong></span></div>`;
+    const display = (key, unit, prefix = '') => {
+      const value = target[key];
+      return typeof value === 'number' && Number.isFinite(value)
+        ? `${prefix}${value.toLocaleString('zh-CN')}${unit}`
+        : '待填写';
+    };
+    const metrics = [
+      ['建设周期', display('durationWeeks', ' 周')],
+      ['项目预算', display('budgetCny', ' 元')],
+      ['单件节拍', display('cycleSeconds', ' 秒', '≤ ')],
+      ['重复定位精度', display('positionMm', ' mm', '≤ ')],
+      ['安全互锁通过率', display('interlockPercent', '%')]
+    ];
+    targets.innerHTML = `<dl class="robot-target-grid">
+        ${metrics.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('')}
+      </dl>
+      <p>数据来源 ${escapeHTML(target.sourceDate || '待填写')} · 待核对</p>`;
     renderDetails();
     updateVisible();
   }
@@ -103,12 +121,24 @@
     const tasks = links.taskIds.map(id => data.tasks.find(task => task.id === id && task.projectId === project.id));
     const risks = links.riskIds.map(id => data.risks.find(risk => risk.id === id && risk.projectId === project.id));
     const missing = tasks.filter(item => !item).length + risks.filter(item => !item).length;
-    const records = [
-      ...tasks.filter(Boolean).map(task => `<li><button class="small secondary" type="button" data-robot-task="${escapeHTML(task.id)}">${escapeHTML(task.code)} ${escapeHTML(task.title)}</button> <span>${escapeHTML(TASK_STATUS_LABELS[task.status])}${task.requiresAcceptance ? ' · ' + escapeHTML(deliveryStatus(task)) : ''}</span>${task.requiresAcceptance ? ` <button type="button" class="small secondary" data-robot-review="${escapeHTML(task.id)}">查看交付单</button>` : ''}</li>`),
-      ...risks.filter(Boolean).map(risk => `<li><button class="small secondary" type="button" data-robot-risk="${escapeHTML(risk.id)}">${escapeHTML(risk.name)}</button> <span>${escapeHTML(RISK_STATUS_LABELS[risk.status])}</span></li>`)
-    ];
-    details.innerHTML = `<div class="robot-detail-head"><h3>${escapeHTML(labels[selected])} · 关联记录</h3>${manager() ? '<button type="button" class="small secondary" data-robot-action="links">管理关联</button>' : ''}</div>
-      <p>当前可见记录</p>${records.length ? `<ul>${records.join('')}</ul>` : '<p>暂无可见关联记录。</p>'}
+    const taskRows = tasks.filter(Boolean).map(task => `<li>
+      <button class="small secondary robot-record-link" type="button" data-robot-task="${escapeHTML(task.id)}">${escapeHTML(task.code)} ${escapeHTML(task.title)}</button>
+      <div class="robot-record-meta">
+        <span>${escapeHTML(TASK_STATUS_LABELS[task.status])}${task.requiresAcceptance ? ' · ' + escapeHTML(deliveryStatus(task)) : ''}</span>
+        ${task.requiresAcceptance ? `<button type="button" class="small secondary" data-robot-review="${escapeHTML(task.id)}">交付单</button>` : ''}
+      </div></li>`);
+    const riskRows = risks.filter(Boolean).map(risk => `<li>
+      <button class="small secondary robot-record-link" type="button" data-robot-risk="${escapeHTML(risk.id)}">${escapeHTML(risk.name)}</button>
+      <div class="robot-record-meta"><span>${escapeHTML(RISK_STATUS_LABELS[risk.status])}</span></div></li>`);
+    const device = window.RobotWorkstation?.devices?.find(item => item.id === selected);
+    details.innerHTML = `<div class="robot-device-description">
+      <h3>${escapeHTML(device?.name || labels[selected])}</h3>
+      ${device?.description ? `<p>${escapeHTML(device.description)}</p>` : ''}
+    </div>
+      <div class="robot-detail-head"><h4>关联记录</h4>${manager() ? '<button type="button" class="small secondary" data-robot-action="links">管理关联</button>' : ''}</div>
+      ${taskRows.length ? `<h5>任务</h5><ul>${taskRows.join('')}</ul>` : ''}
+      ${riskRows.length ? `<h5>风险</h5><ul>${riskRows.join('')}</ul>` : ''}
+      ${!taskRows.length && !riskRows.length ? '<p>暂无可见关联记录。</p>' : ''}
       ${missing && manager() ? `<p>有 ${missing} 条关联记录已失效，可在管理关联中清理。</p>` : ''}`;
   }
   async function updateVisible() {
@@ -119,18 +149,19 @@
       sceneHost.textContent = '3D 组件未加载，请检查网络后刷新页面。';
       return;
     }
-    const generation = ++sceneGeneration;
-    pending = window.RobotWorkstation.mount(sceneHost, {onSelect(device) {
-      const id = typeof device === 'string' ? device : device?.id;
-      if (labels[id]) { selected = id; renderDetails(); }
-    }});
     try {
-      const instance = await pending;
-      if (generation !== sceneGeneration) { instance?.destroy(); return; }
-      scene = instance;
+      pending = window.RobotWorkstation.mount(sceneHost, {
+        details: info,
+        onSelect(device) {
+          const id = typeof device === 'string' ? device : device?.id;
+          if (labels[id]) { selected = id; renderDetails(); }
+        }
+      });
+      scene = await pending;
       scene?.setVisible(enabled() && location.hash === '#robotHeading');
     } catch (error) {
       sceneHost.textContent = '3D 场景无法启动，请检查网络、浏览器或图形硬件后重试。';
+      sceneHost.after(info);
       console.warn('3D workstation initialization failed', error);
     } finally { pending = null; }
   }
@@ -144,7 +175,7 @@
     const config = getCurrentProject().robotWorkspace;
     if (type === 'targets') {
       const fields = [['durationWeeks','建设周期（周）'],['budgetCny','预算（元）'],['cycleSeconds','单件节拍目标（秒）'],['positionMm','重复定位精度目标（mm）'],['interlockPercent','安全互锁通过率目标（%）']];
-      body.innerHTML = fields.map(([key,label]) => `<label class="field">${label}<input name="${key}" type="number" min="0" ${key === 'interlockPercent' ? 'max="100"' : ''} step="any" value="${config.targets?.[key] ?? ''}"></label>`).join('') +
+      body.innerHTML = fields.map(([key,label]) => `<label class="field">${label}<input name="${key}" type="number" min="0" ${key === 'interlockPercent' ? 'max="100"' : ''} step="any" value="${escapeHTML(config.targets?.[key] ?? '')}"></label>`).join('') +
         `<label class="field">目标来源日期<input type="date" name="sourceDate" value="${escapeHTML(config.targets?.sourceDate || '')}"></label>`;
     } else {
       const links = config.links?.[selected] || {taskIds:[],riskIds:[]};

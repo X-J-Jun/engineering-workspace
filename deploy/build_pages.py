@@ -1,4 +1,5 @@
 """Build the static GitHub Pages artifact from the local workspace page."""
+import hashlib
 import json
 import os
 import re
@@ -21,8 +22,17 @@ if html.count(entry) != 1:
 html = html.replace(entry, f"<script>window.workspaceCloudConfig = {config};\n{adapter}</script>\n{entry}")
 output = ROOT / "_site"
 output.mkdir(exist_ok=True)
+assets = (
+    "robot-workstation.js",
+    "robot-workstation.css",
+    "robot-integration.js",
+    "robot-integration.css",
+    "robot-line-preview.webp",
+)
+for asset in assets:
+    source = ROOT / asset
+    shutil.copy2(source, output / asset)
+    version = hashlib.sha256(source.read_bytes()).hexdigest()[:12]
+    html = html.replace(f'"{asset}"', f'"{asset}?v={version}"')
+
 (output / "index.html").write_text(html, encoding="utf-8")
-
-
-for asset in ("robot-workstation.js", "robot-workstation.css", "robot-integration.js", "robot-integration.css"):
-    shutil.copy2(ROOT / asset, output / asset)

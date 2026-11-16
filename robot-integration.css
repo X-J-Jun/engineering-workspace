@@ -1,16 +1,165 @@
-.robot-page-heading,.robot-detail-head{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
-.robot-page-heading p,.robot-details p{color:#9aafc2}
-.robot-targets{border:1px solid #294157;background:#111f2f;border-radius:10px;padding:14px 16px;margin:12px 0}
-.robot-targets p{margin:0 0 9px;color:#a7bccb;font-size:13px}
-.robot-target-grid{display:flex;gap:12px 24px;flex-wrap:wrap;color:#a8bacb}
-.robot-target-grid strong{color:#e5f5ff}
-.robot-details{margin-top:16px;border:1px solid #294157;background:#111f2f;border-radius:10px;padding:16px}
-.robot-details h3{margin:0}
-.robot-details li{margin:8px 0}
-.robot-editor{min-width:min(620px,85vw)}
-.robot-editor .field{display:grid;gap:5px;margin:10px 0}
-.robot-editor .field input{width:100%}
-.robot-checklist{max-height:190px;overflow:auto;border:1px solid #294157;border-radius:6px;padding:8px}
-.robot-check{display:flex;gap:10px;align-items:center;padding:5px}
+.robot-workspace {
+  padding: 12px;
+}
 
-.sidebar a[hidden]{display:none!important}
+.robot-page-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  padding: 2px 6px 10px;
+}
+
+.robot-page-heading h2 {
+  padding: 0;
+  margin: 0;
+  font-size: clamp(20px, 2vw, 24px);
+}
+
+.robot-page-heading h2::after { display: none; }
+.robot-page-heading > span { color: #9db6c7; font-size: 12px; }
+.robot-scene { min-width: 0; }
+.robot-workspace .robot-station-layout { min-height: 0; }
+.robot-workspace .robot-station-viewport {
+  height: clamp(455px, 60dvh, 740px);
+  min-height: 0;
+}
+
+.robot-workspace .robot-station-devices,
+.robot-workspace .robot-station-detail {
+  align-self: stretch;
+  min-width: 0;
+  max-height: clamp(455px, 60dvh, 740px);
+  padding: 10px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  background: #0e1d2a;
+}
+
+.robot-workspace .robot-station-devices > summary,
+.robot-workspace .robot-station-detail > summary,
+.robot-targets > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 35px;
+  padding: 6px 8px;
+  color: #b7ccda;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.robot-workspace details > summary::-webkit-details-marker { display: none; }
+
+.robot-workspace .robot-station-devices > summary::after,
+.robot-workspace .robot-station-detail > summary::after,
+.robot-targets > summary::after {
+  content: "";
+  flex: 0 0 6px;
+  height: 6px;
+  border: solid currentColor;
+  border-width: 0 1px 1px 0;
+  transform: rotate(-45deg);
+}
+
+.robot-workspace .robot-station-devices[open] > summary::after,
+.robot-workspace .robot-station-detail[open] > summary::after,
+.robot-targets[open] > summary::after { transform: rotate(45deg); }
+
+.robot-info { padding: 5px 4px; min-width: 0; }
+.robot-details h3, .robot-details h4, .robot-details h5 { margin: 0; }
+.robot-details h3 { font-size: 16px; overflow-wrap: anywhere; }
+.robot-details h4 { font-size: 13px; }
+.robot-details h5 { font-size: 12px; color: #9abacd; }
+.robot-details p, .robot-targets p {
+  color: #abc1d0;
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 7px 0;
+}
+
+.robot-device-description { padding-bottom: 8px; }
+.robot-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-top: 1px solid #294255;
+  padding: 9px 0 6px;
+}
+
+.robot-details ul { padding: 0; margin: 5px 0 10px; list-style: none; }
+.robot-details li {
+  margin: 0 0 6px;
+  padding: 4px 6px;
+  border: 1px solid #294255;
+  border-radius: 5px;
+  background: #142636;
+}
+
+.robot-details .robot-record-link {
+  width: 100%;
+  padding: 4px;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: #def0fc;
+  border-color: transparent;
+  background: transparent;
+}
+
+.robot-record-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 4px 2px;
+  color: #aac3d2;
+  font-size: 12px;
+}
+
+.robot-targets { border-top: 1px solid #294255; margin-top: 9px; }
+.robot-targets > summary { padding-inline: 0; }
+.robot-target-grid { display: grid; gap: 5px; margin: 3px 0; font-size: 12px; }
+.robot-target-grid > div { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 3px 10px; }
+.robot-target-grid dt { color: #abc1d0; }
+.robot-target-grid dd { margin: 0; color: #def0fc; font-weight: 650; font-variant-numeric: tabular-nums; }
+.robot-targets button[hidden], .sidebar a[hidden] { display: none !important; }
+
+.robot-editor { min-width: min(620px, 85vw); }
+.robot-editor .field { display: grid; gap: 5px; margin: 10px 0; }
+.robot-editor .field input { width: 100%; }
+.robot-checklist { max-height: 190px; overflow: auto; border: 1px solid #294157; border-radius: 6px; padding: 8px; }
+.robot-check { display: flex; gap: 10px; align-items: center; padding: 5px; }
+
+@media (min-width: 960px) {
+  .robot-workspace .robot-station-layout {
+    display: grid;
+    grid-template-columns: minmax(132px, 15%) minmax(0, 1fr) minmax(198px, 24%);
+  }
+  .robot-workspace .robot-station-devices { grid-column: 1; grid-row: 1; }
+  .robot-workspace .robot-station-viewport { grid-column: 2; grid-row: 1; }
+  .robot-workspace .robot-station-detail { grid-column: 3; grid-row: 1; border-left: 1px solid #294052; }
+  .robot-workspace .robot-station-device-buttons { display: grid; }
+}
+
+@media (max-width: 959px) {
+  .robot-workspace .robot-station-layout { display: flex; flex-direction: column; }
+  .robot-workspace .robot-station-viewport { order: -1; height: clamp(250px, 37dvh, 330px); }
+  .robot-workspace .robot-station-devices,
+  .robot-workspace .robot-station-detail {
+    max-height: 310px;
+    border: 0;
+    border-top: 1px solid #294052;
+  }
+  .robot-workspace .robot-station-device-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 135px), 1fr));
+  }
+  .robot-workspace .robot-station-device-buttons button { width: 100%; }
+}

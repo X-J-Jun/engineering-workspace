@@ -1,39 +1,36 @@
-.robot-station { color: #dce8f2; border: 1px solid #29485e; border-radius: 10px; overflow: hidden; background: #0c1925; }
-.robot-station-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:15px 18px; border-bottom:1px solid #294052; background:#101f2d; }
-.robot-station-head strong { font-size:16px; color:#f1f6fa; }
-.robot-station-tag { display:inline-block; margin-left:12px; color:#8fb7c8; font-size:12px; }
-.robot-station-state { color:#5de0be; font-size:13px; }
-.robot-station-layout { display:grid; grid-template-columns:180px minmax(0,1fr); min-height:480px; }
-.robot-station-devices { padding:16px 10px; border-right:1px solid #294052; background:#10202d; }
-.robot-station-subtitle { padding:0 8px 10px; color:#94aebb; font-size:12px; }
-.robot-station-device-buttons { display:grid; gap:6px; }
-.robot-station-device-buttons button { width:100%; min-height:38px; padding:8px 10px; border:1px solid transparent; border-radius:5px; text-align:left; color:#b9ccd7; background:transparent; box-shadow:none; font-size:13px; }
-.robot-station-device-buttons button:hover, .robot-station-device-buttons button[aria-pressed="true"] { border-color:#34637a; color:#e9f8ff; background:#173d50; }
-.robot-station-viewport { position:relative; min-width:0; min-height:480px; overflow:hidden; }
-.robot-station-canvas { position:absolute; inset:0; }
-.robot-station-canvas canvas { display:block; width:100%; height:100%; touch-action:none; }
-.robot-station-hint { position:absolute; left:14px; bottom:12px; pointer-events:none; color:#a9c0cf; font-size:12px; }
-.robot-station-error { position:absolute; inset:0; display:grid; place-content:center; padding:22px; text-align:center; color:#e1bd91; background:#101b27; }
-.robot-station-error[hidden] { display:none; }
-.robot-station-stage { min-height:38px; padding:10px 16px; border-top:1px solid #294052; color:#8fdcf1; font-size:13px; }
-.robot-station-actions { display:flex; flex-wrap:wrap; gap:8px; padding:2px 14px 12px; }
-.robot-station-actions button { min-height:34px; padding:7px 10px; border:1px solid #365466; border-radius:5px; color:#d7e8ef; background:#172d3b; box-shadow:none; font-size:12px; }
-.robot-station-actions button:hover { background:#244b5e; }
-.robot-station-actions .robot-emergency { color:#ffd8cf; border-color:#a7473c; background:#552b29; }
-.robot-station-actions .robot-emergency.active { background:#a7382b; color:white; }
-.robot-station-caption { margin:0; padding:0 16px 14px; color:#91aab8; font-size:12px; }
-@media (max-width:800px) {
- .robot-station-layout { grid-template-columns:1fr; min-height:390px; }
- .robot-station-devices { border-right:0; border-bottom:1px solid #294052; padding:10px; }
- .robot-station-device-buttons { display:flex; gap:6px; overflow-x:auto; }
- .robot-station-device-buttons button { flex:0 0 auto; width:auto; }
- .robot-station-viewport { min-height:360px; }
- .robot-station-tag { display:block; margin:4px 0 0; }
-}
-@media (prefers-reduced-motion:reduce) {
- .robot-station * { scroll-behavior:auto; }
-}
 
+.robot-station { color:#e2eef8; border:1px solid #284257; border-radius:12px; overflow:hidden; background:#0c1826; }
+.robot-station-head { display:flex; align-items:center; flex-wrap:wrap; gap:8px 18px; min-height:50px; padding:9px 14px; border-bottom:1px solid #263e52; background:#101e2c; }
+.robot-station-head p { margin:0; font-size:13px; }
+.robot-station-head .robot-station-tag { margin-inline-start:auto; color:#a5b9cb; font-size:12px; }
+.robot-station-state { color:#7bdfc4; font-weight:650; }
+.robot-station-stage { color:#c2eaff; }
+.robot-station-viewport { position:relative; min-width:0; min-height:clamp(410px,58vh,680px); overflow:hidden; background:#0b1726; }
+.robot-station-canvas,.robot-preview-canvas { position:absolute; inset:0; }
+.robot-station-canvas canvas,.robot-preview-canvas canvas { display:block; width:100%; height:100%; touch-action:none; }
+.robot-station-hint { position:absolute; left:14px; bottom:13px; padding:4px 8px; pointer-events:none; color:#c4d9e8; background:#0b1726c9; border-radius:4px; font-size:11px; }
+.robot-station-selection { position:absolute; left:14px; top:13px; padding:5px 9px; pointer-events:none; color:#b7edff; background:#101f2de6; border:1px solid #4197b5; border-radius:4px; font-size:12px; }
+.robot-station-error { position:absolute; inset:0; display:grid; place-content:end center; padding:16px; text-align:center; color:#e0ecf5; background:linear-gradient(0deg,#0b1726 3%,#0b172611 36%),url('robot-line-preview.webp') center / contain no-repeat #0b1726; }
+.robot-station [hidden],.robot-preview [hidden] { display:none !important; }
+.robot-station-device-buttons { display:grid; gap:5px; padding:6px 8px 10px; }
+.robot-station .robot-station-device-buttons button { width:100%; min-height:39px; padding:8px; border:1px solid transparent; border-radius:6px; text-align:left; color:#bfd3e1; background:#10202f; box-shadow:none; font-size:12px; overflow-wrap:anywhere; }
+.robot-station .robot-station-device-buttons button:hover,.robot-station .robot-station-device-buttons button[aria-pressed="true"] { border-color:#38647e; color:#e9f9ff; background:#18384e; }
+.robot-station-actions { display:flex; flex-wrap:wrap; align-items:flex-start; gap:9px 13px; padding:10px 13px 13px; border-top:1px solid #253f53; }
+.robot-station-actions fieldset { display:flex; flex-wrap:wrap; min-inline-size:0; margin:0; gap:5px; padding:5px 7px 7px; border:1px solid #2a4559; border-radius:6px; }
+.robot-station-actions legend { color:#a9c4d7; padding-inline:4px; font-size:11px; }
+.robot-station .robot-station-actions button,.robot-preview .robot-preview-controls button { min-height:33px; padding:6px 9px; border:1px solid #35586d; border-radius:5px; color:#e0edf5; background:#172e41; box-shadow:none; font-size:12px; line-height:1.4; }
+.robot-station .robot-station-actions button:hover,.robot-preview .robot-preview-controls button:hover,.robot-station .robot-station-actions button[aria-pressed="true"] { background:#235774; }
+.robot-station .robot-station-actions [data-action="play"] { background:#17628b; border-color:#4da7cb; }
+.robot-station .robot-station-actions .robot-emergency { color:#ffe0d9; border-color:#9c534d; background:#562f32; }
+.robot-station .robot-station-actions .robot-emergency.active { background:#a83730; color:#fff; }
+.robot-station .robot-station-actions button:disabled { opacity:.48; cursor:default; }
 .robot-station-part-labels { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
-.robot-station-part-labels span { position:absolute; transform:translate(8px,-100%); padding:4px 7px; border:1px solid #4383a0; border-radius:3px; background:#10283ae8; color:#c8f3ff; font-size:11px; white-space:nowrap; }
-.robot-station-part-labels span[hidden] { display:none; }
+.robot-station-part-labels span { position:absolute; transform:translate(7px,-100%); padding:3px 6px; border:1px solid #4383a0; border-radius:4px; background:#0d2435ef; color:#d3f3ff; font-size:11px; white-space:nowrap; }
+.robot-station-part-labels span::before { content:""; position:absolute; left:-8px; top:100%; width:10px; height:1px; background:#70bbd6; transform:rotate(-35deg); transform-origin:right; }
+.robot-preview { position:absolute; inset:0; }
+.robot-preview-controls { position:absolute; display:flex; flex-wrap:wrap; gap:6px; left:12px; bottom:12px; padding:6px; background:#0b1726c9; border-radius:6px; }
+@media (max-width:959px) {
+  .robot-station-viewport { min-height:clamp(280px,51vw,470px); }
+  .robot-station-head { gap:6px 13px; }
+  .robot-station-head .robot-station-tag { margin-inline-start:0; }
+}

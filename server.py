@@ -224,10 +224,15 @@ class WorkspaceHandler(BaseHTTPRequestHandler):
         if self.path in ("/", "/index.html"):
             self.reply(200, PAGE.read_bytes(), "text/html; charset=utf-8")
         elif self.path in ("/robot-workstation.js", "/robot-workstation.css",
-                           "/robot-integration.js", "/robot-integration.css"):
+                           "/robot-integration.js", "/robot-integration.css",
+                           "/robot-line-preview.webp"):
             resource = PAGE.with_name(self.path[1:])
             if resource.is_file():
-                content_type = "text/javascript; charset=utf-8" if resource.suffix == ".js" else "text/css; charset=utf-8"
+                content_type = {
+                    ".js": "text/javascript; charset=utf-8",
+                    ".css": "text/css; charset=utf-8",
+                    ".webp": "image/webp",
+                }[resource.suffix]
                 self.reply(200, resource.read_bytes(), content_type)
             else:
                 self.reply_json(404, {"error": "not_found"})
