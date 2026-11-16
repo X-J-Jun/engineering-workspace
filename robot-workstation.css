@@ -101,6 +101,7 @@
   grid-template-columns: 208px minmax(0, 1fr) 300px;
   gap: 10px;
   padding: 0 10px;
+  height: clamp(430px, 56vh, 800px);
   min-height: 0;
 }
 
@@ -109,11 +110,13 @@
   flex-direction: column;
   gap: 8px;
   min-height: 0;
+  max-height: 100%;
   padding: 10px;
   border: 1px solid var(--rw-line-soft);
   border-radius: 11px;
   background: var(--rw-panel);
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .rw-side header {
@@ -209,7 +212,8 @@
 
 .rw-viewport {
   position: relative;
-  min-height: clamp(420px, 56vh, 780px);
+  min-height: 0;
+  height: 100%;
   border: 1px solid var(--rw-line-soft);
   border-radius: 11px;
   overflow: hidden;
@@ -600,10 +604,11 @@
   .robot-station-layout {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "view" "devices" "detail";
+    height: auto;
   }
-  .rw-devices { grid-area: devices; flex-direction: column; }
-  .rw-detail { grid-area: detail; }
-  .rw-viewport { grid-area: view; min-height: 56vh; }
+  .rw-devices { grid-area: devices; flex-direction: column; max-height: none; }
+  .rw-detail { grid-area: detail; max-height: none; }
+  .rw-viewport { grid-area: view; height: auto; min-height: 56vh; }
   .rw-device-buttons { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
   .rw-side-note { display: none; }
 }
