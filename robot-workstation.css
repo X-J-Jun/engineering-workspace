@@ -1,13 +1,13 @@
 /* Digital-twin shell for the flexible assembly workstation. */
 
 .robot-station {
-  --rw-bg: #07101a;
-  --rw-panel: rgba(13, 27, 40, .82);
-  --rw-panel-strong: rgba(10, 22, 34, .94);
+  --rw-bg: #14283b;
+  --rw-panel: rgba(27, 52, 73, .86);
+  --rw-panel-strong: rgba(22, 44, 62, .96);
   --rw-line: rgba(96, 176, 224, .22);
   --rw-line-soft: rgba(96, 176, 224, .12);
-  --rw-text: #d5e6f4;
-  --rw-muted: #7d95ab;
+  --rw-text: #e3f1fc;
+  --rw-muted: #afc7d9;
   --rw-cyan: #5fe0ff;
   --rw-green: #48e3a4;
   --rw-amber: #ffc65c;
@@ -23,7 +23,7 @@
   background:
     radial-gradient(900px 420px at 18% -8%, rgba(48, 132, 186, .24), transparent 70%),
     radial-gradient(700px 380px at 88% 108%, rgba(30, 96, 148, .18), transparent 70%),
-    linear-gradient(180deg, #08131f 0%, #060e18 60%, #050b13 100%);
+    linear-gradient(160deg, #203e58 0%, #162b40 65%, #112236 100%);
   box-shadow: 0 18px 50px rgba(3, 10, 18, .5), inset 0 1px 0 rgba(126, 206, 255, .12);
   font-feature-settings: "tnum";
 }
@@ -47,7 +47,7 @@
   gap: 12px;
   padding: 10px 16px;
   border-bottom: 1px solid var(--rw-line-soft);
-  background: linear-gradient(90deg, rgba(13, 30, 45, .9), rgba(9, 20, 31, .55));
+  background: linear-gradient(90deg, #1d3a51ec, #152a3eb8);
 }
 
 .rw-pulse {
@@ -217,7 +217,8 @@
   border: 1px solid var(--rw-line-soft);
   border-radius: 11px;
   overflow: hidden;
-  background: radial-gradient(circle at 50% 30%, #10202e 0%, #070f18 72%);
+  background: var(--workspace-glow), radial-gradient(ellipse at 42% 20%, #294a66 0%, #142639 69%);
+  background-attachment: fixed;
 }
 
 .rw-canvas,

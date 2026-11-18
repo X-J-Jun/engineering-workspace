@@ -987,8 +987,14 @@
   .cloud-login-veil {
     position: absolute; inset: 0; pointer-events: none;
     background:
-      linear-gradient(90deg, rgba(4,12,20,.06) 0%, rgba(4,12,20,.24) 46%, rgba(4,10,18,.82) 76%, rgba(3,8,14,.95) 100%),
-      radial-gradient(120% 85% at 16% 12%, rgba(4,12,20,0) 42%, rgba(3,9,16,.5) 100%);
+      linear-gradient(90deg, #101f3010 0%, #10243925 48%, #101f3093 80%, #101f30bc 100%),
+      radial-gradient(120% 85% at 16% 12%, transparent 45%, #13294050 100%);
+  }
+  .cloud-login-veil::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: var(--workspace-glow);
+    opacity: .36;
   }
   .cloud-login-brandbar {
     position: absolute; left: clamp(18px,3.4vw,46px); top: clamp(16px,2.6vw,34px);
@@ -1033,7 +1039,7 @@
     }
     .cloud-login-brandbar { left: 16px; top: 14px; font-size: 15px; }
     .cloud-login-veil {
-      background: linear-gradient(0deg, rgba(4,10,18,.95) 0%, rgba(4,10,18,.7) 42%, rgba(4,10,18,.12) 80%);
+      background: linear-gradient(0deg, #112236db 0%, #12263bb0 42%, #18365018 83%);
     }
     .cloud-login-stage .robot-preview-controls { display: none; }
   }
@@ -1155,19 +1161,22 @@
   /* Industrial workspace palette */
   :root {
     color-scheme: dark;
+    --workspace-glow:radial-gradient(ellipse 470px 360px at var(--light-x, 42%) var(--light-y, 28%), #70ceff50 0%, #4099d52e 42%, #2476b410 67%, transparent 100%);
+    --workspace-ambient:radial-gradient(ellipse at 7% 7%, #2b557a9c, transparent 57%), radial-gradient(ellipse at 100% 91%, #694a3852, transparent 43%), linear-gradient(145deg, #172c45, #101e30 70%);
     --navy:#dceefa; --blue:#53b9df; --blue-soft:#183345;
-    --ink:#d8e7f1; --muted:#9aafbe; --line:#304958;
-    --page:#08121c; --white:#111f2b; --green:#70d2a5;
+    --ink:#e2eff8; --muted:#b4cad9; --line:#46647a;
+    --page:#101f30; --white:#182e41; --green:#70d2a5;
     --green-soft:#143c35; --amber:#f0c77e; --amber-soft:#493b26;
     --red:#ff9b91; --red-soft:#4d292d; --gold:#6ebed7;
   }
   :root:not([data-cloud-entry]) body, body {
-    background:radial-gradient(ellipse at 70% -25%,#183e56 0,transparent 55%),#08121c;
+    background:var(--workspace-glow),var(--workspace-ambient);
+    background-attachment:fixed;
     color:var(--ink);
     font-family:"Segoe UI","Microsoft YaHei",sans-serif;
   }
   :root:not([data-cloud-entry]) .sidebar {
-    background:#0c1a27; border-color:#253d4b; box-shadow:none;
+    background:#142b40e8; border-color:#44647b; box-shadow:none;
   }
   :root:not([data-cloud-entry]) .sidebar-brand { border-color:#2a4250; }
   :root:not([data-cloud-entry]) .sidebar-brand strong,
@@ -1181,7 +1190,7 @@
   }
   :root:not([data-cloud-entry]) .sidebar a[aria-current]::before { background:#65d4f6; }
   :root:not([data-cloud-entry]) .workspace-header {
-    background:#0e1c29; border-color:#283f4d; box-shadow:0 4px 18px #0004;
+    background:#172d41ed; border-color:#426078; box-shadow:0 4px 18px #08172545;
   }
   :root:not([data-cloud-entry]) .workspace-header h1,
   :root:not([data-cloud-entry]) .workspace-context label { color:#e1eef5; }
@@ -1195,9 +1204,13 @@
     background:#49252a; color:#ffc1b9; border-color:#814448;
   }
   main > section, .workspace-overview, .app-dialog, table {
-    background:#101f2b; color:var(--ink); border-color:var(--line);
+    background:#182f44; color:var(--ink); border-color:var(--line);
   }
-  main > section { box-shadow:0 8px 26px #0003; }
+  main > section {
+    background:var(--workspace-glow),linear-gradient(155deg,#25465fe0,#182e43e8 70%);
+    background-attachment:fixed,scroll;
+    box-shadow:0 12px 28px #07142142,inset 0 1px #aaddff18;
+  }
   .workspace-header h1, main h2 { font-family:"Segoe UI","Microsoft YaHei",sans-serif; letter-spacing:.02em; }
   main > section h2, h2, h3, h4, .dialog-head h3,
   .panel-heading h3, .project-card h3, .current-project-info strong,
@@ -1205,13 +1218,13 @@
   .acceptance-item h4, .impact-summary strong { color:#e3f3fa; }
   .hint, .field label, .panel-heading p, .project-card p, .board-card p,
   .acceptance-item p, .metric span, .current-project-info, .muted, footer {
-    color:#a7bdc9;
+    color:#b9d0df;
   }
   input, select, textarea, [data-cloud-entry] .cloud-login input,
   .backup-actions input[type=file] {
-    color:#e3eef5; background:#0a1924; border-color:#365263;
+    color:#ebf5fd; background:#1a3248; border-color:#4b6c83;
   }
-  input::placeholder, textarea::placeholder { color:#8199a8; }
+  input::placeholder, textarea::placeholder { color:#a5bdcf; }
   input:focus, select:focus, textarea:focus, button:focus-visible {
     border-color:#67d0ef; outline:2px solid #65c9ed88; outline-offset:2px;
   }
@@ -1227,7 +1240,7 @@
   .project-card, .project-card.active, .innovation-card, .metric,
   .board-card, .board-column, .acceptance-item, .acceptance-materials,
   .overview-rates label, .empty, .collision-card {
-    background:#152938; border-color:#35505e; color:var(--ink);
+    background:#213e54dc; border-color:#47667b; color:var(--ink);
     box-shadow:none;
   }
   .project-card.active { border-color:#5bbedc; }
@@ -1235,10 +1248,10 @@
   .project-card.active::before { background:#69c7e3; }
   .collision-card h4 { color:#f3d29d; }
   .collision-project, .blocker-entry { border-color:#35505e; }
-  .table-wrap { background:#101f2b; border-color:#35505e; box-shadow:none; }
-  th, td { border-color:#304958; }
-  th { background:#1b3445; color:#e2f1f7; }
-  tbody tr:hover { background:#20394a; }
+  .table-wrap { background:#193247; border-color:#47667b; box-shadow:none; }
+  th, td { border-color:#456279; }
+  th { background:#24445d; color:#ecf7ff; }
+  tbody tr:hover { background:#294b64; }
   tr.first-level-row { background:#1a3040; }
   tr.first-level-row td { color:#e3f3fa; }
   .status-pill, .level-tag, .panel-badge, .status-chip {
@@ -1256,12 +1269,12 @@
   .acceptance-materials a, a { color:#8ddcf8; }
   .overview-rates progress { accent-color:#61ceb2; }
   .workspace-overview .overview-metrics button:not(.danger):not(.secondary) {
-    background:#152e3d; border-color:#395669; color:#c9dee9;
+    background:#234158; border-color:#52758b; color:#daeef9;
   }
   .workspace-overview .overview-metrics strong { color:#e0f5fd; }
   .gantt-header, .gantt-header > strong { background:#1c3748; color:#e2f1f7; }
   .gantt-task, .gantt-parent-row, .gantt-parent-row .gantt-task {
-    background:#152a38; color:#e1eef4;
+    background:#1e394f; color:#e7f4fd;
   }
   .gantt-group-toggle.secondary { color:#e1eef4; }
   .gantt-group-toggle.secondary:hover { background:#244555; }
@@ -1273,21 +1286,22 @@
   .plan-views [aria-current="page"] { background:#26526a; color:#fff; }
   :focus-visible { outline-color:#73d6f3; }
   [data-cloud-entry] body {
-    background:#060f19;
+    background:var(--workspace-glow),var(--workspace-ambient);
   }
   .cloud-login {
-    background:#060f19; color:#e4f2f8; border-color:transparent;
+    background:var(--workspace-glow),var(--workspace-ambient); color:#eaf5fd; border-color:transparent;
     box-shadow:none;
   }
-  .cloud-login::backdrop { background:#060f19; backdrop-filter:none; }
+  .cloud-login::backdrop { background:#101f30; backdrop-filter:none; }
   .cloud-login-content {
-    background:rgba(8,20,32,.44);
-    border-color:rgba(140,205,240,.3);
+    background:linear-gradient(150deg,#294d67c9,#142c42df);
+    border-color:#8ec6ea75;
+    box-shadow:0 24px 62px #07142375,inset 0 1px #d0edff35;
   }
   .cloud-login-content h2 { color:#eaf7ff; font-family:"Segoe UI","Microsoft YaHei",sans-serif; }
-  .cloud-login-content .field label { color:#9fb8c8; }
+  .cloud-login-content .field label { color:#bed6e7; }
   .cloud-login-content input {
-    background:rgba(6,16,26,.72); border-color:rgba(96,160,190,.35);
+    background:#1b364be8; border-color:#7195ac9c;
   }
   .cloud-login-content input:focus { border-color:#67d0ef; }
   .cloud-login-mark { background:linear-gradient(160deg,#2f8cb2,#1b5473); color:#fff; }
@@ -4788,21 +4802,42 @@ if (sharedMode) {
 
   const lightRoot = document.documentElement;
   const lightMotion = matchMedia('(prefers-reduced-motion: reduce)');
-  if (matchMedia('(any-pointer: fine)').matches) {
-    let glowFrame = 0;
-    let latestPoint;
-    window.addEventListener('pointermove', event => {
-      if (lightMotion.matches || event.pointerType === 'touch') return;
-      latestPoint = [event.clientX, event.clientY];
-      if (glowFrame) return;
-      glowFrame = requestAnimationFrame(() => {
-        glowFrame = 0;
-        if (lightMotion.matches) return;
-        lightRoot.style.setProperty('--light-x', (latestPoint[0] / innerWidth * 100).toFixed(1) + '%');
-        lightRoot.style.setProperty('--light-y', (latestPoint[1] / innerHeight * 100).toFixed(1) + '%');
-      });
-    }, {passive:true});
+  const finePointer = matchMedia('(any-pointer: fine)');
+  let glowFrame = 0;
+  let lightX = 42;
+  let lightY = 28;
+  let targetX = lightX;
+  let targetY = lightY;
+  let lastTime = 0;
+
+  function moveGlow(time) {
+    const blend = lastTime ? 1 - Math.exp(-Math.min(time - lastTime, 48) / 56) : .24;
+    lastTime = time;
+    lightX += (targetX - lightX) * blend;
+    lightY += (targetY - lightY) * blend;
+    const moving = Math.abs(targetX - lightX) + Math.abs(targetY - lightY) > .12;
+    lightRoot.style.setProperty('--light-x', (moving ? lightX : targetX).toFixed(2) + '%');
+    lightRoot.style.setProperty('--light-y', (moving ? lightY : targetY).toFixed(2) + '%');
+    glowFrame = moving ? requestAnimationFrame(moveGlow) : 0;
+    if (!moving) lastTime = 0;
   }
+
+  window.addEventListener('pointermove', event => {
+    if (lightMotion.matches || !finePointer.matches || event.pointerType === 'touch') return;
+    targetX = 100 * event.clientX / innerWidth;
+    targetY = 100 * event.clientY / innerHeight;
+    if (!glowFrame) glowFrame = requestAnimationFrame(moveGlow);
+  }, {passive:true});
+  lightMotion.addEventListener('change', () => {
+    if (!lightMotion.matches) return;
+    cancelAnimationFrame(glowFrame);
+    glowFrame = lastTime = 0;
+    targetX = lightX = 42;
+    targetY = lightY = 28;
+    lightRoot.style.removeProperty('--light-x');
+    lightRoot.style.removeProperty('--light-y');
+  });
+
   if (!cloud) return;
   const host = document.querySelector('#cloudLoginPreview');
   const root = document.documentElement;

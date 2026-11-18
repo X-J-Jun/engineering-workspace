@@ -89,7 +89,7 @@
     renderer.setPixelRatio(Math.min(devicePixelRatio || 1, preview ? 1 : 1.6));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = preview ? .95 : 1.08;
+    renderer.toneMappingExposure = preview ? 1.12 : 1.19;
     if (!preview) {
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -103,10 +103,10 @@
     try {
       environment = environmentMap(THREE, renderer);
       scene.environment = environment;
-      scene.environmentIntensity = .55;
+      scene.environmentIntensity = .63;
     } catch { /* environment is optional */ }
 
-    scene.add(new THREE.HemisphereLight('#dcecff', '#31465a', preview ? 2.2 : 1.7));
+    scene.add(new THREE.HemisphereLight('#e0f0ff', '#59728b', preview ? 2.35 : 2.1));
     const key = new THREE.DirectionalLight('#fff3e6', preview ? 2.4 : 2.7);
     key.position.set(-6, 13, 9);
     if (!preview) {
@@ -123,9 +123,9 @@
     }
     const rim = new THREE.DirectionalLight('#79c8ff', 1.9);
     rim.position.set(8, 6, -10);
-    const fill = new THREE.DirectionalLight('#ffd9b0', .65);
+    const fill = new THREE.DirectionalLight('#ffe5c8', .84);
     fill.position.set(-11, 3, -4);
-    const follow = new THREE.DirectionalLight('#a9d8ff', .9);
+    const follow = new THREE.DirectionalLight('#c0e9ff', 1.15);
     follow.position.set(-1, 7, 6);
     scene.add(key, rim, fill, follow);
 
@@ -160,6 +160,9 @@
     const desiredTarget = new THREE.Vector3();
     const homeDirection = new THREE.Vector3(10.2, 8.6, 12.4).normalize();
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    const lightOrigin = follow.position.clone();
+    const lightTarget = lightOrigin.clone();
+    const listeners = new AbortController();
 
     let homeDistance = 21;
     let overview = true;
@@ -246,6 +249,22 @@
     observer.observe(host);
     controls.addEventListener('start', () => { focusMoving = false; overview = false; });
     controls.addEventListener('change', () => { draw = true; });
+    const pointerOptions = {passive:true, signal:listeners.signal};
+    host.addEventListener('pointermove', event => {
+      if (reducedMotion.matches || event.pointerType === 'touch') return;
+      const rect = host.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const x = (event.clientX - rect.left) / rect.width;
+      const y = (event.clientY - rect.top) / rect.height;
+      lightTarget.set((x - .5) * 22, 4 + (1 - y) * 12, 7);
+    }, pointerOptions);
+    host.addEventListener('pointerleave', () => lightTarget.copy(lightOrigin), pointerOptions);
+    reducedMotion.addEventListener('change', () => {
+      if (!reducedMotion.matches) return;
+      lightTarget.copy(lightOrigin);
+      follow.position.copy(lightOrigin);
+      draw = true;
+    }, {signal:listeners.signal});
 
     function tick(time) {
       frameId = 0;
@@ -256,6 +275,10 @@
       frames++;
 
       const animated = update(dt, clock);
+      if (follow.position.distanceToSquared(lightTarget) > .001) {
+        follow.position.lerp(lightTarget, 1 - Math.exp(-dt * 9));
+        draw = true;
+      }
       model.update(clock);
 
       if (model.halo.visible) {
@@ -306,6 +329,7 @@
       stopped = true;
       stopFrame();
       observer.disconnect();
+      listeners.abort();
       controls.dispose();
       model.dispose();
       environment?.dispose();
@@ -314,7 +338,7 @@
       renderer.domElement.remove();
     }
 
-    document.addEventListener('visibilitychange', schedule);
+    document.addEventListener('visibilitychange', schedule, {signal:listeners.signal});
     home(true);
     resize();
     return {
