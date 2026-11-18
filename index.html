@@ -1339,7 +1339,7 @@
     <div class="workspace-nav-group">
       <p>项目执行</p>
       <a href="#projectHeading">项目管理</a>
-      <a href="#wbsHeading">任务与进度</a>
+      <a id="tasksNav" href="#wbsHeading">任务与进度</a>
       <a href="#boardHeading">进度甘特图</a>
       <a href="#riskHeading">风险与问题</a>
       <a href="#innovationHeading">项目协同</a>
@@ -1483,11 +1483,13 @@
     <p class="hint">先建立一级任务，再添加二级工作包。编号示例：一级“1.0”，其下属二级“1.1”。</p>
     <div class="workspace-filters">
       <label for="taskQuery">查找任务</label>
-      <input id="taskQuery" type="search" placeholder="名称或责任人">
+      <input id="taskQuery" type="search" placeholder="编号、名称或负责人">
       <label for="taskFilter">筛选</label>
       <select id="taskFilter"><option value="">全部</option><option value="todo">待开始</option><option value="doing">进行中</option><option value="done">已完成</option><option value="overdue">逾期</option><option value="blocked">阻塞</option><option value="pending">待验收</option></select>
+      <button id="clearTaskFilters" class="secondary" type="button" disabled>清除筛选</button>
       <button id="togglePackages" class="secondary" type="button" aria-expanded="true">折叠工作包</button>
     </div>
+    <p id="taskListSummary" class="muted" role="status"></p>
     <details id="taskEditor" class="workspace-editor"><summary>新建或编辑任务</summary>
     <form id="wbsForm" class="form-grid">
       <input type="hidden" id="editingTaskId">
@@ -2549,18 +2551,39 @@ function actionButtons(kind, id, task) {
 }
 
 function renderWbs() {
+  const query = taskQuery.value.trim();
+  const status = taskFilter.value;
+  const filtering = Boolean(query || status);
+  clearTaskFiltersButton.disabled = !filtering;
+
   const project = getCurrentProject();
   if (!project) {
+    taskListSummary.textContent = '';
     wbsTableBody.innerHTML = '<tr><td colspan="8" class="muted">请先创建或选择一个项目。</td></tr>';
     return;
   }
   const tasks = currentTasks();
-  const matching = tasks.filter(task => task.level === 2 && taskMatches(task, tasks));
-  const filtering = taskFilter.value || taskQuery.value.trim();
-  const firstLevel = tasks.filter(task => task.level === 1 &&
-    (!filtering || matching.some(child => child.parentId === task.id))).sort(codeSort);
+  const parents = tasks.filter(task => task.level === 1);
+  const workPackages = tasks.filter(task => task.level === 2);
+  taskListSummary.textContent = `当前可查看 ${parents.length} 项一级任务 · ${workPackages.length} 项工作包`;
+
+  const matchingParents = new Set(parents
+    .filter(task => matchesQuery([task.code, task.title], query))
+    .map(task => task.id));
+  const matchingPackages = new Set();
+  const parentsWithMatches = new Set();
+  for (const task of workPackages) {
+    if (!taskMatchesStatus(task, tasks, status)) continue;
+    if (!matchingParents.has(task.parentId) && !matchesQuery([task.code, task.title, task.owner], query)) continue;
+    matchingPackages.add(task.id);
+    parentsWithMatches.add(task.parentId);
+  }
+  const firstLevel = parents
+    .filter(task => parentsWithMatches.has(task.id) || (!status && matchingParents.has(task.id)))
+    .sort(codeSort);
   if (!firstLevel.length) {
-    wbsTableBody.innerHTML = '<tr><td colspan="8" class="muted">没有符合条件的 WBS 任务。</td></tr>';
+    const message = !tasks.length ? '当前项目没有可查看的任务。' : '没有符合条件的任务。可以清除筛选后查看全部。';
+    wbsTableBody.innerHTML = `<tr><td colspan="8" class="muted">${message}</td></tr>`;
     return;
   }
 
@@ -2587,7 +2610,7 @@ function renderWbs() {
       return;
     }
     if (packagesCollapsed && !filtering) return;
-    children.filter(task => matching.includes(task)).forEach(task => {
+    children.filter(task => matchingPackages.has(task.id)).forEach(task => {
       rows.push(`
         <tr data-task-id="${escapeHTML(task.id)}">
           <td class="nowrap">${escapeHTML(task.code)}</td>
@@ -3860,9 +3883,7 @@ function jumpToTask(projectId, taskId) {
     history.pushState(null, '', '#wbsHeading');
     markActiveModule();
   }
-  taskQuery.value = taskFilter.value = '';
-  if (packagesCollapsed) togglePackages.click();
-  else renderWbs();
+  clearTaskFilters();
   setTimeout(() => focusTaskRow(taskId), 80);
 }
 
@@ -4494,6 +4515,8 @@ memberList.addEventListener('click', async event => {
 const projectSwitcher = document.querySelector('#projectSwitcher');
 const taskQuery = document.querySelector('#taskQuery');
 const taskFilter = document.querySelector('#taskFilter');
+const clearTaskFiltersButton = document.querySelector('#clearTaskFilters');
+const taskListSummary = document.querySelector('#taskListSummary');
 const riskQuery = document.querySelector('#riskQuery');
 const riskFilter = document.querySelector('#riskFilter');
 const togglePackages = document.querySelector('#togglePackages');
@@ -4598,13 +4621,12 @@ function matchesQuery(values, query) {
   const needle = query.trim().toLocaleLowerCase();
   return values.some(value => String(value || '').toLocaleLowerCase().includes(needle));
 }
-function taskMatches(task, tasks) {
-  if (!matchesQuery([task.code, task.title, task.owner], taskQuery.value)) return false;
-  switch (taskFilter.value) {
+function taskMatchesStatus(task, tasks, status) {
+  switch (status) {
     case 'overdue': return isOverdue(task);
     case 'blocked': return isBlocked(task, tasks);
     case 'pending': return pendingAcceptance(task);
-    default: return !taskFilter.value || task.status === taskFilter.value;
+    default: return !status || task.status === status;
   }
 }
 function riskMatches(risk) {
@@ -4714,6 +4736,16 @@ function loadDemoProject() {
 projectSwitcher.addEventListener('change', () => selectCurrentProject(projectSwitcher.value));
 taskQuery.addEventListener('input', renderWbs);
 taskFilter.addEventListener('change', renderWbs);
+function clearTaskFilters() {
+  taskQuery.value = taskFilter.value = '';
+  if (packagesCollapsed) togglePackages.click();
+  else renderWbs();
+}
+clearTaskFiltersButton.addEventListener('click', () => {
+  clearTaskFilters();
+  taskQuery.focus();
+});
+document.querySelector('#tasksNav').addEventListener('click', clearTaskFilters);
 riskQuery.addEventListener('input', renderRisks);
 riskFilter.addEventListener('change', renderRisks);
 togglePackages.addEventListener('click', () => {
